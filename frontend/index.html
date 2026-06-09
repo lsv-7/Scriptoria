@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineForge AI - Pre-Production Studio</title>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS Styles -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- ==========================================================
+         MODULE 1: LANDING PAGE VIEW
+         ========================================================== -->
+    <div id="landing-view" class="landing-container">
+        <!-- Landing Header -->
+        <header class="landing-header">
+            <a href="#" class="logo">
+                <i class="fa-solid fa-clapperboard"></i> CineForge <span>AI</span>
+            </a>
+            <div class="nav-buttons">
+                <button class="btn btn-secondary" onclick="openModal('login-modal')">Login</button>
+                <button class="btn btn-primary" onclick="openModal('register-modal')">Register</button>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="badge">Next-Gen Film Tech</div>
+            <h1 class="hero-title">Forge Your Story Into A <span>Cinematic Blueprint</span></h1>
+            <p class="hero-description">
+                Generate professional screenplays, characters, scene breakdowns, storyboards, sound design, and production plans instantly from a single story idea.
+            </p>
+            <div class="flex gap-1">
+                <button class="btn btn-gold btn-lg" onclick="openModal('register-modal')">
+                    Get Started Free <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button class="btn btn-secondary btn-lg" onclick="scrollToFeatures()">
+                    Explore Features
+                </button>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features-section" class="features-section">
+            <div class="section-header">
+                <h2>AI-Powered Pre-Production Suite</h2>
+                <p>Everything you need to take a script from concept to shooting schedule.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+                    <h3>Story Analysis</h3>
+                    <p>Unlock deep insights into your themes, target audience appeal, genre conventions, and market positioning.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-scroll"></i></div>
+                    <h3>Screenplay Generator</h3>
+                    <p>Format cinematic screenplay pages matching standard industry shapes and dialogues automatically.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-users"></i></div>
+                    <h3>Character Designer</h3>
+                    <p>Flesh out three-dimensional profiles detailing backstory, goals, strengths, and character arcs.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-film"></i></div>
+                    <h3>Storyboard Board</h3>
+                    <p>Receive detailed prompt blueprints, lighting grids, and camera angles for every scene.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-volume-high"></i></div>
+                    <h3>Sound & Music Blueprint</h3>
+                    <p>Compose auditory briefs mapping soundtracks, foley soundboards, and environmental noise markers.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-calendar-days"></i></div>
+                    <h3>Production Planner</h3>
+                    <p>Generate equipment lists, set locations, props checklists, and estimated shooting schedule days.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2026 CineForge AI Pre-Production Studio. Powered by Google Gemini & IBM Granite.</p>
+        </footer>
+    </div>
+
+    <!-- ==========================================================
+         DASHBOARD VIEW (SHELL CONTAINER)
+         ========================================================== -->
+    <div id="dashboard-view" class="dashboard-container" style="display: none;">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <a href="#" class="logo" onclick="switchSubview('dashboard')">
+                    <i class="fa-solid fa-clapperboard"></i> CineForge <span>AI</span>
+                </a>
+            </div>
+            
+            <ul class="sidebar-menu">
+                <li>
+                    <a class="sidebar-link active" onclick="switchSubview('dashboard')">
+                        <i class="fa-solid fa-table-columns"></i> Dashboard
+                    </a>
+                </li>
+                <li>
+                    <a class="sidebar-link generation-link disabled" onclick="switchSubview('story')">
+                        <i class="fa-solid fa-magnifying-glass-chart"></i> Story Analysis
+                    </a>
+                </li>
+                <li>
+                    <a class="sidebar-link generation-link disabled" onclick="switchSubview('screenplay')">
+                        <i class="fa-solid fa-scroll"></i> Screenplay
+                    </a>
+                </li>
+                <li>
+                    <a class="sidebar-link generation-link disabled" onclick="switchSubview('characters')">
+                        <i class="fa-solid fa-users"></i> Characters
+                    </a>
+                </li>
+                <li>
+                    <a class="sidebar-link generation-link disabled" onclick="switchSubview('scenes')">
+                        <i class="fa-solid fa-list-check"></i> Scene Breakdown
+                    </a>
+                </li>
+                <li>
+                    <a class="sidebar-link generation-link disabled" onclick="switchSubview('storyboard')">
+                        <i class="fa-solid fa-images"></i> Storyboard
+                    </a>
+                </li>
+                <li>
+                    <a class="sidebar-link generation-link disabled" onclick="switchSubview('sound')">
+                        <i class="fa-solid fa-volume-high"></i> Sound Design
+                    </a>
+                </li>
+                <li>
+                    <a class="sidebar-link generation-link disabled" onclick="switchSubview('production')">
+                        <i class="fa-solid fa-calendar-days"></i> Production Plan
+                    </a>
+                </li>
+                <li>
+                    <a class="sidebar-link generation-link disabled" onclick="switchSubview('export')">
+                        <i class="fa-solid fa-file-export"></i> Export Center
+                    </a>
+                </li>
+                <li>
+                    <a class="sidebar-link" onclick="switchSubview('projects')">
+                        <i class="fa-solid fa-folder-open"></i> My Projects
+                    </a>
+                </li>
+            </ul>
+
+            <!-- User profile footer -->
+            <div class="sidebar-user">
+                <div class="user-info">
+                    <div class="user-avatar" id="user-avatar-initials">CF</div>
+                    <div class="user-details">
+                        <span class="user-name" id="user-display-name">Filmmaker</span>
+                        <span class="user-email" id="user-display-email">user@cineforge.ai</span>
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- sticky topbar -->
+            <div class="content-header">
+                <div>
+                    <h3 id="current-subview-title">Dashboard</h3>
+                </div>
+                <div class="current-project-bar">
+                    <i class="fa-solid fa-clapperboard"></i> 
+                    <span>Project: </span>
+                    <span id="active-project-name" style="color: var(--accent-gold);">No Project Active</span>
+                </div>
+            </div>
+
+            <!-- view viewport -->
+            <div class="view-container">
+
+                <!-- ----------------------------------------------------
+                     SUB-VIEW: DASHBOARD (WELCOME / OVERVIEW)
+                     ---------------------------------------------------- -->
+                <div id="subview-dashboard" class="view-section active">
+                    <div class="welcome-banner">
+                        <h1>Welcome back, <span id="welcome-user-name">Filmmaker</span>!</h1>
+                        <p>Begin a new cinematic script package or continue edit on previous ones.</p>
+                        <div class="mt-3">
+                            <button class="btn btn-gold" onclick="openModal('create-project-modal')">
+                                <i class="fa-solid fa-plus"></i> Create New Project
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Active Project Summary Details -->
+                    <div id="active-project-details" class="info-card" style="display: none;">
+                        <h3>Active Project Summary</h3>
+                        <div class="flex justify-between align-center mb-2">
+                            <div>
+                                <h4 id="summary-project-name" style="font-size: 1.5rem;">Untitled</h4>
+                                <span class="project-genre" id="summary-project-genre">Drama</span>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.85rem; color: var(--color-secondary);">Target Audience: </span>
+                                <strong id="summary-project-audience">All</strong>
+                            </div>
+                        </div>
+                        <p style="margin-bottom: 1.5rem;"><strong>Story Idea:</strong> <span id="summary-project-idea">Idea...</span></p>
+                        
+                        <h4 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">Pre-Production Assets Checklist</h4>
+                        <div class="dashboard-grid">
+                            <div class="action-card">
+                                <div>
+                                    <h3>Story Analysis</h3>
+                                    <p>Genre insights, loglines, synopsis, theme analysis.</p>
+                                </div>
+                                <div class="flex justify-between align-center">
+                                    <span id="status-story" class="badge" style="margin-bottom: 0;">Missing</span>
+                                    <button class="btn btn-primary btn-sm" onclick="switchSubview('story')">Manage</button>
+                                </div>
+                            </div>
+                            <div class="action-card">
+                                <div>
+                                    <h3>Screenplay Excerpt</h3>
+                                    <p>Fully formatted action screenplay matching scene headings.</p>
+                                </div>
+                                <div class="flex justify-between align-center">
+                                    <span id="status-screenplay" class="badge" style="margin-bottom: 0;">Missing</span>
+                                    <button class="btn btn-primary btn-sm" onclick="switchSubview('screenplay')">Manage</button>
+                                </div>
+                            </div>
+                            <div class="action-card">
+                                <div>
+                                    <h3>Character Profiles</h3>
+                                    <p>Fleshed out protagonist, antagonist, and supporting characters.</p>
+                                </div>
+                                <div class="flex justify-between align-center">
+                                    <span id="status-characters" class="badge" style="margin-bottom: 0;">Missing</span>
+                                    <button class="btn btn-primary btn-sm" onclick="switchSubview('characters')">Manage</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     SUB-VIEW: STORY ANALYSIS
+                     ---------------------------------------------------- -->
+                <div id="subview-story" class="view-section">
+                    <div class="subview-header">
+                        <div>
+                            <h2>Story Analysis & Narrative Structure</h2>
+                            <p>Generate logs, themes, loglines, synopses, and act breakdowns.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Trigger panel -->
+                    <div class="info-card">
+                        <h3>Generator Panel</h3>
+                        <p style="margin-bottom: 1rem;">Use Gemini model to analyze the story concept and structure the narrative flow.</p>
+                        <div class="flex gap-1">
+                            <button id="btn-gen-analysis" class="btn btn-gold" onclick="triggerStoryAnalysis()">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Story Analysis
+                            </button>
+                            <button id="btn-gen-structure" class="btn btn-primary" onclick="triggerNarrativeStructure()">
+                                <i class="fa-solid fa-shapes"></i> Generate Narrative Structure
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Output display -->
+                    <div class="dashboard-grid">
+                        <div class="info-card" style="position: relative;">
+                            <div id="loader-story-analysis" class="loading-overlay">
+                                <div class="film-reel-loader"></div>
+                                <div class="loading-text">Analyzing Story...</div>
+                            </div>
+                            <h3>Story Insights</h3>
+                            <div id="output-story-analysis" class="screenplay-empty">
+                                <i class="fa-solid fa-magnifying-glass-chart" style="font-size: 2.5rem; margin-bottom: 10px; color: var(--color-muted);"></i>
+                                <p>Click Generate to analyze your story idea.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-card" style="position: relative;">
+                            <div id="loader-story-structure" class="loading-overlay">
+                                <div class="film-reel-loader"></div>
+                                <div class="loading-text">Structuring Acts...</div>
+                            </div>
+                            <h3>3-Act Narrative Structure</h3>
+                            <div id="output-story-structure" class="screenplay-empty">
+                                <i class="fa-solid fa-shapes" style="font-size: 2.5rem; margin-bottom: 10px; color: var(--color-muted);"></i>
+                                <p>Click Generate to create Act breakdowns.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     SUB-VIEW: SCREENPLAY
+                     ---------------------------------------------------- -->
+                <div id="subview-screenplay" class="view-section">
+                    <div class="subview-header">
+                        <div>
+                            <h2>Screenplay Generator</h2>
+                            <p>Generate industry-compliant screenplay script drafts.</p>
+                        </div>
+                        <button id="btn-gen-screenplay" class="btn btn-gold" onclick="triggerScreenplay()">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Script
+                        </button>
+                    </div>
+
+                    <div style="position: relative; min-height: 500px;">
+                        <div id="loader-screenplay" class="loading-overlay">
+                            <div class="film-reel-loader"></div>
+                            <div class="loading-text">Generating Screenplay...</div>
+                        </div>
+                        
+                        <div id="screenplay-paper" class="screenplay-container">
+                            <div class="screenplay-empty">
+                                <i class="fa-solid fa-scroll" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                                <p>No script generated yet. Click "Generate Script" to formulate screenplay using IBM Granite AI.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     SUB-VIEW: CHARACTERS
+                     ---------------------------------------------------- -->
+                <div id="subview-characters" class="view-section">
+                    <div class="subview-header">
+                        <div>
+                            <h2>Character Profile Designer</h2>
+                            <p>Generate protagonist, antagonist, and secondary character archetypes.</p>
+                        </div>
+                        <button id="btn-gen-characters" class="btn btn-gold" onclick="triggerCharacters()">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Characters
+                        </button>
+                    </div>
+
+                    <div style="position: relative; min-height: 400px;">
+                        <div id="loader-characters" class="loading-overlay">
+                            <div class="film-reel-loader"></div>
+                            <div class="loading-text">Designing Characters...</div>
+                        </div>
+
+                        <div id="characters-container" class="characters-grid">
+                            <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
+                                <i class="fa-solid fa-users" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                                <p>Click Generate to design characters for this project.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     SUB-VIEW: SCENE BREAKDOWN
+                     ---------------------------------------------------- -->
+                <div id="subview-scenes" class="view-section">
+                    <div class="subview-header">
+                        <div>
+                            <h2>Scene Breakdown List</h2>
+                            <p>Generate step-by-step shooting scene checklists.</p>
+                        </div>
+                        <button id="btn-gen-scenes" class="btn btn-gold" onclick="triggerScenes()">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Breakdown Scenes
+                        </button>
+                    </div>
+
+                    <div style="position: relative; min-height: 300px;">
+                        <div id="loader-scenes" class="loading-overlay">
+                            <div class="film-reel-loader"></div>
+                            <div class="loading-text">Breaking down scenes...</div>
+                        </div>
+
+                        <div id="scenes-container" style="overflow-x: auto;">
+                            <div class="info-card text-center" style="padding: 4rem;">
+                                <i class="fa-solid fa-list-check" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                                <p>Click Breakdown Scenes to dissect the story idea.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     SUB-VIEW: STORYBOARD
+                     ---------------------------------------------------- -->
+                <div id="subview-storyboard" class="view-section">
+                    <div class="subview-header">
+                        <div>
+                            <h2>Storyboard Prompt Deck</h2>
+                            <p>Cinematography panels containing description directives.</p>
+                        </div>
+                        <button id="btn-gen-storyboard" class="btn btn-gold" onclick="triggerStoryboard()">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Prompts
+                        </button>
+                    </div>
+
+                    <div style="position: relative; min-height: 400px;">
+                        <div id="loader-storyboard" class="loading-overlay">
+                            <div class="film-reel-loader"></div>
+                            <div class="loading-text">Sketching Storyboard prompts...</div>
+                        </div>
+
+                        <div id="storyboard-container" class="storyboard-grid">
+                            <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
+                                <i class="fa-solid fa-images" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                                <p>Click Generate to compile scene prompt boards.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     SUB-VIEW: SOUND DESIGN
+                     ---------------------------------------------------- -->
+                <div id="subview-sound" class="view-section">
+                    <div class="subview-header">
+                        <div>
+                            <h2>Sound & Audio Design Blueprint</h2>
+                            <p>Configure foley, soundtracks, dialogue processing, and background ambient vibes.</p>
+                        </div>
+                        <button id="btn-gen-sound" class="btn btn-gold" onclick="triggerSoundDesign()">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Sound Plan
+                        </button>
+                    </div>
+
+                    <div style="position: relative; min-height: 400px;">
+                        <div id="loader-sound" class="loading-overlay">
+                            <div class="film-reel-loader"></div>
+                            <div class="loading-text">Composing Audio Blueprint...</div>
+                        </div>
+
+                        <div id="sound-container" class="dashboard-grid">
+                            <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
+                                <i class="fa-solid fa-volume-high" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                                <p>Click Generate to orchestrate audio design using IBM Granite AI.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     SUB-VIEW: PRODUCTION PLAN
+                     ---------------------------------------------------- -->
+                <div id="subview-production" class="view-section">
+                    <div class="subview-header">
+                        <div>
+                            <h2>Production Planning & Line Checklist</h2>
+                            <p>Analyze budget days, shoot schedules, props list, and crew slots.</p>
+                        </div>
+                        <button id="btn-gen-production" class="btn btn-gold" onclick="triggerProductionPlan()">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Production Plan
+                        </button>
+                    </div>
+
+                    <div style="position: relative; min-height: 400px;">
+                        <div id="loader-production" class="loading-overlay">
+                            <div class="film-reel-loader"></div>
+                            <div class="loading-text">Structuring Logistics Plan...</div>
+                        </div>
+
+                        <div id="production-container" class="dashboard-grid">
+                            <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
+                                <i class="fa-solid fa-calendar-days" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                                <p>Click Generate to compile physical logistics plan using IBM Granite AI.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     SUB-VIEW: EXPORT CENTER
+                     ---------------------------------------------------- -->
+                <div id="subview-export" class="view-section">
+                    <div class="subview-header">
+                        <div>
+                            <h2>Export Center</h2>
+                            <p>Download full pre-production booklets containing all generated modules.</p>
+                        </div>
+                    </div>
+
+                    <div class="export-grid">
+                        <div class="export-card pdf">
+                            <i class="fa-solid fa-file-pdf"></i>
+                            <h3>PDF Document</h3>
+                            <p>Professional layout with typography, custom headers/footers, and page numbers.</p>
+                            <button class="btn btn-primary" onclick="exportProjectFile('pdf')">Download PDF</button>
+                        </div>
+                        <div class="export-card docx">
+                            <i class="fa-solid fa-file-word"></i>
+                            <h3>DOCX Document</h3>
+                            <p>Word document file featuring header structures for editing in Word/Pages.</p>
+                            <button class="btn btn-primary" onclick="exportProjectFile('docx')">Download DOCX</button>
+                        </div>
+                        <div class="export-card txt">
+                            <i class="fa-solid fa-file-lines"></i>
+                            <h3>TXT File</h3>
+                            <p>Simple plain text representation formatting for lightweight editing.</p>
+                            <button class="btn btn-primary" onclick="exportProjectFile('txt')">Download TXT</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     SUB-VIEW: MY PROJECTS
+                     ---------------------------------------------------- -->
+                <div id="subview-projects" class="view-section">
+                    <div class="subview-header">
+                        <div>
+                            <h2>My Film Projects</h2>
+                            <p>Browse through your project catalogs or delete obsolete entries.</p>
+                        </div>
+                        <button class="btn btn-gold" onclick="openModal('create-project-modal')">
+                            <i class="fa-solid fa-plus"></i> New Project
+                        </button>
+                    </div>
+
+                    <!-- Search Bar -->
+                    <div class="form-group flex gap-1" style="max-width: 500px; margin-bottom: 2rem;">
+                        <input type="text" id="project-search-input" class="form-control" placeholder="Search by project name..." onkeyup="filterProjects()">
+                        <button class="btn btn-secondary"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    </div>
+
+                    <div id="projects-list-container" class="project-list">
+                        <!-- Projects loaded dynamically -->
+                        <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
+                            <i class="fa-solid fa-folder-open" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                            <p>No projects created yet. Start by clicking "New Project".</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- ==========================================================
+         MODAL DIALOGS
+         ========================================================== -->
+         
+    <!-- Modal: Login -->
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('login-modal')"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="modal-title"><i class="fa-solid fa-user-lock"></i> Login to Studio</h3>
+            
+            <!-- Mock Mode Toggle for Instant Testing -->
+            <div style="background: rgba(124, 77, 255, 0.1); border: 1px solid var(--border-accent); border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <strong style="color: var(--accent-gold); font-size: 0.85rem; display: block;">Enable Demo Mode</strong>
+                    <span style="font-size: 0.75rem; color: var(--color-secondary);">Runs in-memory without setting up Firebase.</span>
+                </div>
+                <input type="checkbox" id="login-mock-toggle" checked style="width: 20px; height: 20px; cursor: pointer;">
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="login-email">Email Address</label>
+                    <input type="email" id="login-email" class="form-control" placeholder="director@cineforge.ai">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" class="form-control" placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Login</button>
+            </form>
+            
+            <div class="text-center mt-3">
+                <button class="btn btn-secondary" onclick="handleGoogleSignIn()" style="width: 100%;">
+                    <i class="fa-brands fa-google" style="color: #4285F4;"></i> Sign in with Google
+                </button>
+            </div>
+            <p class="text-center mt-3" style="font-size: 0.85rem; color: var(--color-secondary);">
+                Don't have an account? <a href="#" onclick="toggleAuthModals('login-modal', 'register-modal')" style="color: var(--accent-purple); font-weight: 600;">Register here</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Modal: Register -->
+    <div id="register-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('register-modal')"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="modal-title"><i class="fa-solid fa-user-plus"></i> Join CineForge Studio</h3>
+            
+            <div style="background: rgba(124, 77, 255, 0.1); border: 1px solid var(--border-accent); border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <strong style="color: var(--accent-gold); font-size: 0.85rem; display: block;">Enable Demo Mode</strong>
+                    <span style="font-size: 0.75rem; color: var(--color-secondary);">Register local session without Firebase.</span>
+                </div>
+                <input type="checkbox" id="register-mock-toggle" checked style="width: 20px; height: 20px; cursor: pointer;">
+            </div>
+
+            <form id="register-form" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label for="register-name">Full Name</label>
+                    <input type="text" id="register-name" class="form-control" placeholder="Christopher Nolan" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-email">Email Address</label>
+                    <input type="email" id="register-email" class="form-control" placeholder="director@cineforge.ai" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Password</label>
+                    <input type="password" id="register-password" class="form-control" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-gold" style="width: 100%; margin-top: 1rem;">Create Account</button>
+            </form>
+            <p class="text-center mt-3" style="font-size: 0.85rem; color: var(--color-secondary);">
+                Already have an account? <a href="#" onclick="toggleAuthModals('register-modal', 'login-modal')" style="color: var(--accent-purple); font-weight: 600;">Login here</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Modal: Create Project -->
+    <div id="create-project-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="modal-close" onclick="closeModal('create-project-modal')"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="modal-title"><i class="fa-solid fa-film"></i> Start New Film Project</h3>
+            <form id="create-project-form" onsubmit="handleCreateProject(event)">
+                <div class="form-group">
+                    <label for="proj-name">Project Name</label>
+                    <input type="text" id="proj-name" class="form-control" placeholder="e.g. Inception, Memento" required>
+                </div>
+                <div class="form-group">
+                    <label for="proj-genre">Genre</label>
+                    <input type="text" id="proj-genre" class="form-control" placeholder="e.g. Sci-Fi Thriller, Neo-Noir, Period Drama" required>
+                </div>
+                <div class="form-group">
+                    <label for="proj-audience">Target Audience</label>
+                    <input type="text" id="proj-audience" class="form-control" placeholder="e.g. YA 18-25, Classic Film Fans, Indie Enthusiasts" required>
+                </div>
+                <div class="form-group">
+                    <label for="proj-idea">Story Idea / Pitch</label>
+                    <textarea id="proj-idea" class="form-control" placeholder="Summarize your core concept: protagonist, setting, inciting incident, and stakes..." required></textarea>
+                </div>
+                <div class="flex justify-between" style="gap: 15px; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeModal('create-project-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-gold" style="flex: 2;">Initialize Studio Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         FIREBASE COMPAT SCRIPTS & CLIENT ROUTING
+         ========================================================== -->
+    <!-- Core Firebase SDK and Auth SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    
+    <!-- Application Logic Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
