@@ -2,6 +2,66 @@ import json
 import re
 from flask import jsonify
 
+def parse_combined_story_idea(story_idea_str):
+    """
+    Parses a combined story idea string into a dictionary:
+    {
+        "pitch": str,
+        "logline": str,
+        "synopsis": str,
+        "theme": str,
+        "story_analysis": str # formatted string for prompt
+    }
+    """
+    if not isinstance(story_idea_str, str):
+        story_idea_str = str(story_idea_str or "")
+        
+    pitch = ""
+    logline = ""
+    synopsis = ""
+    theme = ""
+    
+    # Check if we have the multi-line "Pitch:", "Logline:", "Synopsis:", "Theme:" structure
+    if "pitch:" in story_idea_str.lower() and "logline:" in story_idea_str.lower():
+        # Match sections
+        p_match = re.search(r'(?i)Pitch:\s*(.*?)(?=\bLogline:|$)', story_idea_str, re.DOTALL)
+        if p_match:
+            pitch = p_match.group(1).strip()
+            
+        l_match = re.search(r'(?i)Logline:\s*(.*?)(?=\bSynopsis:|$)', story_idea_str, re.DOTALL)
+        if l_match:
+            logline = l_match.group(1).strip()
+            
+        s_match = re.search(r'(?i)Synopsis:\s*(.*?)(?=\bTheme:|$)', story_idea_str, re.DOTALL)
+        if s_match:
+            synopsis = s_match.group(1).strip()
+            
+        t_match = re.search(r'(?i)Theme:\s*(.*?)$', story_idea_str, re.DOTALL)
+        if t_match:
+            theme = t_match.group(1).strip()
+    else:
+        # Just a raw pitch
+        pitch = story_idea_str.strip()
+        
+    # Reconstruct story_analysis text block
+    analysis_parts = []
+    if logline:
+        analysis_parts.append(f"Logline: {logline}")
+    if synopsis:
+        analysis_parts.append(f"Synopsis: {synopsis}")
+    if theme:
+        analysis_parts.append(f"Theme: {theme}")
+        
+    story_analysis = "\n".join(analysis_parts) if analysis_parts else f"Story Idea/Pitch: {pitch}"
+    
+    return {
+        "pitch": pitch,
+        "logline": logline,
+        "synopsis": synopsis,
+        "theme": theme,
+        "story_analysis": story_analysis
+    }
+
 def clean_json_response(text):
     """
     Cleans markdown code blocks (e.g. ```json ... ```) from a text response

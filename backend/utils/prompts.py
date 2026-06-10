@@ -1,262 +1,437 @@
 # System and template prompts for the CineForge AI generation services
+"""
+CineForge AI - Master Prompt Library
+Production-grade prompt system with:
+- Global rules
+- Character consistency
+- Genre guidance
+- Strict JSON enforcement
+- Rich scene generation
+- Storyboard optimization
+- Screenplay continuity
+"""
+
+# ============================================================
+# GLOBAL RULES
+# ============================================================
+
+GLOBAL_RULES = """
+MANDATORY RULES:
+
+1. Return valid JSON only when JSON is requested.
+2. Never wrap output in markdown code fences.
+3. Never include explanations outside requested output.
+4. Maintain continuity across all generated assets.
+5. Reuse character names exactly as provided.
+6. Do not invent additional protagonists.
+7. Infer missing details logically.
+8. Ensure cinematic and production-ready quality.
+9. Avoid repetition.
+10. Keep outputs internally consistent.
+
+FORMATTING RULES:
+
+- No markdown.
+- No commentary.
+- No placeholders.
+- No screenplay scene headings unless explicitly requested.
+"""
+
+# ============================================================
+# GENRE GUIDELINES
+# ============================================================
+
+GENRE_GUIDELINES = {
+    "Thriller": """
+    Maintain suspense.
+    Escalate stakes continuously.
+    End major scenes with uncertainty.
+    """,
+
+    "Comedy": """
+    Include setups and payoffs.
+    Prioritize character-driven humor.
+    Maintain pacing.
+    """,
+
+    "Horror": """
+    Build dread gradually.
+    Use atmosphere before scares.
+    Focus on tension and sensory details.
+    """,
+
+    "Drama": """
+    Emphasize emotional conflict.
+    Prioritize character development.
+    """,
+
+    "Sci-Fi": """
+    Maintain internal world consistency.
+    Ground futuristic concepts logically.
+    """,
+
+    "Action": """
+    Keep momentum high.
+    Use escalating physical challenges.
+    """
+}
+
+# ============================================================
+# STORY ANALYSIS
+# ============================================================
 
 STORY_ANALYSIS_PROMPT = """
-You are an expert film analyst and producer.
-Analyze the following story idea and generate a comprehensive story analysis.
-Your response MUST be a valid JSON object ONLY. Do not wrap the JSON in Markdown code blocks (like ```json), and do not include any other text.
+{global_rules}
 
-Story Idea: {story_idea}
-Genre: {genre}
-Target Audience: {target_audience}
-Target Duration/Length: {duration_length}
+You are a world-class film analyst, producer and screenplay consultant.
 
-CRITICAL FORMATTING RULE: Do NOT use raw screenplay location headings (like 'INT. LOCATION - DAY' or 'EXT. LOCATION - NIGHT') inside your synopsis, theme, genre_analysis, or audience_insights text fields. Instead, describe settings and locations naturally in conversational, lowercase prose (e.g., 'the school classroom', 'the student's room'). Keep standard uppercase screenplay markers strictly for screenplay scripts and scene lists.
+Story Idea:
+{story_idea}
 
-Expected JSON structure:
+Genre:
+{genre}
+
+Genre Guidance:
+{genre_guidance}
+
+Target Audience:
+{target_audience}
+
+Target Duration:
+{duration_length}
+
+Return ONLY valid JSON.
+
+Expected Structure:
+
 {{
-  "genre_analysis": "Detailed analysis of how the story fits the chosen genre, key tropes used, and unique twists.",
-  "theme": "The core thematic message and underlying meaning of the story.",
-  "logline": "A compelling 1-2 sentence hook describing the main protagonist, conflict, and goal.",
-  "synopsis": "A detailed 3-paragraph synopsis of the plot.",
-  "audience_insights": "Analysis of the target audience appeal, marketing hooks, and competitive landscape.",
-  "tagline": "A catchy marketing tagline for the film poster."
+    "genre_analysis": "",
+    "theme": "",
+    "logline": "",
+    "synopsis": "",
+    "audience_insights": "",
+    "tagline": "",
+    "tone": "",
+    "rating": "",
+    "comparable_films": [],
+    "festival_potential": "",
+    "streaming_audience_fit": ""
 }}
 """
 
-NARRATIVE_STRUCTURE_PROMPT = """
-You are an expert screenwriter and script consultant.
-Generate a structured 3-Act narrative breakdown for the following story idea.
-You MUST base the act structures, plot progression, and descriptions on these specific characters: {characters_list}.
-Your response MUST be a valid JSON object ONLY. Do not wrap the JSON in Markdown code blocks, and do not include any other text.
-
-Story Idea: {story_idea}
-Genre: {genre}
-Target Duration/Length: {duration_length}
-
-CRITICAL FORMATTING RULE: Do NOT use raw screenplay location headings (like 'INT. LOCATION - DAY' or 'EXT. LOCATION - NIGHT') inside your act descriptions, conflicts, or rising action text fields. Describe settings naturally in lowercase prose.
-
-Expected JSON structure:
-{{
-  "act_1": {{
-    "title": "Act 1: Setup",
-    "description": "Establish the status quo, inciting incident, and the first major plot point.",
-    "conflict": "The initial central conflict introduced.",
-    "rising_action": "How the characters are pushed out of their comfort zones."
-  }},
-  "act_2": {{
-    "title": "Act 2: Confrontation & Midpoint",
-    "description": "The rising stakes, midpoint twist, and descent into the 'all is lost' moment.",
-    "rising_action": "Subplots, obstacles, and compounding problems.",
-    "climax": "The peak tension leading to the end of Act 2."
-  }},
-  "act_3": {{
-    "title": "Act 3: Resolution",
-    "description": "The climax of the film and final resolution.",
-    "climax": "The final showdown or confrontation resolving the main conflict.",
-    "resolution": "The new status quo and character realizations."
-  }}
-}}
-"""
+# ============================================================
+# CHARACTER GENERATION
+# ============================================================
 
 CHARACTER_GENERATOR_PROMPT = """
-You are an expert character designer.
-Generate 3-4 distinct character profiles for a film based on the story idea below.
-You MUST identify, extract, and generate profiles for the specific characters that are named, mentioned, or described in the Logline and Synopsis under the Story Idea. Ensure their names, roles, and backstories align perfectly with the plot details described in the Logline and Synopsis.
-You MUST use native Indian names for all characters (e.g., Rohan, Priya, Aarav, Ananya, Kabir, etc.). If characters are already named in the Logline/Synopsis, use those exact names.
-Your response MUST be a valid JSON object ONLY. Do not wrap the JSON in Markdown code blocks, and do not include any other text.
+{global_rules}
 
-CRITICAL FORMATTING RULE: Do NOT use raw screenplay location headings (like 'INT. LOCATION - DAY') inside character profiles, backstories, or goals. Describe settings naturally in lowercase prose.
+You are a master character designer.
 
-Story Idea: {story_idea}
-Genre: {genre}
+Story Analysis:
+{story_analysis}
 
-Expected JSON structure:
+Story Idea:
+{story_idea}
+
+Genre:
+{genre}
+
+Requirements:
+
+- Use Indian names unless already specified.
+- Generate only story-relevant characters.
+- Characters must support the logline and synopsis.
+- No generic characters.
+
+Return ONLY valid JSON.
+
 {{
-  "characters": [
-    {{
-      "name": "Character Name (e.g., Rohan)",
-      "age": "Age (e.g. 30)",
-      "backstory": "Detailed backstory and history.",
-      "personality": "Personality traits, temperament.",
-      "goals": "Core motivation and goal in the story.",
-      "strengths": "Key abilities or traits that help them.",
-      "weaknesses": "Flaws or obstacles in their personality.",
-      "arc": "How the character changes from start to finish."
-    }}
-  ]
+    "characters":[
+        {{
+            "name":"",
+            "age":"",
+            "occupation":"",
+            "backstory":"",
+            "personality":"",
+            "goal":"",
+            "fear":"",
+            "strengths":"",
+            "weaknesses":"",
+            "internal_conflict":"",
+            "external_conflict":"",
+            "relationships":[],
+            "arc":""
+        }}
+    ]
 }}
 """
+
+# ============================================================
+# NARRATIVE STRUCTURE
+# ============================================================
+
+NARRATIVE_STRUCTURE_PROMPT = """
+{global_rules}
+
+You are a professional screenwriter.
+
+Story Analysis:
+{story_analysis}
+
+Characters:
+{characters_json}
+
+Genre:
+{genre}
+
+Duration:
+{duration_length}
+
+Return ONLY valid JSON.
+
+{{
+    "act_1": {{
+        "title":"",
+        "description":"",
+        "conflict":"",
+        "rising_action":""
+    }},
+
+    "act_2": {{
+        "title":"",
+        "description":"",
+        "midpoint":"",
+        "rising_action":"",
+        "all_is_lost":"",
+        "climax":""
+    }},
+
+    "act_3": {{
+        "title":"",
+        "description":"",
+        "climax":"",
+        "resolution":""
+    }}
+}}
+"""
+
+# ============================================================
+# SCENE BREAKDOWN
+# ============================================================
 
 SCENE_BREAKDOWN_PROMPT = """
-You are a film director and assistant director.
-Break down the story idea into core scenes for a screenplay of the specified duration.
-You MUST strictly use these specific characters in the scenes: {characters_list}. Do not invent new character names unless they are minor extra characters.
-If it is a short film, generate 4-5 scenes. If it is a feature film or series, generate 8-10 scenes.
-Your response MUST be a valid JSON object ONLY. Do not wrap the JSON in Markdown code blocks, and do not include any other text.
+{global_rules}
 
-Story Idea: {story_idea}
-Genre: {genre}
-Target Duration/Length: {duration_length}
+You are an assistant director and screenwriter.
 
-Expected JSON structure:
+Story Analysis:
+{story_analysis}
+
+Narrative Structure:
+{narrative_structure}
+
+Characters:
+{characters_json}
+
+Duration:
+{duration_length}
+
+Return ONLY valid JSON.
+
 {{
-  "scenes": [
-    {{
-      "scene_number": 1,
-      "location": "INT. LOCATION - TIME (e.g. INT. COFFEE SHOP - DAY)",
-      "characters": "List of character names in the scene",
-      "objective": "What is the dramatic goal of this scene?",
-      "duration": "Estimated duration in minutes (e.g., 2 mins)"
-    }}
-  ]
+    "scenes":[
+        {{
+            "scene_number":1,
+            "title":"",
+            "location":"",
+            "characters":[],
+            "objective":"",
+            "conflict":"",
+            "key_emotion":"",
+            "story_progression":"",
+            "duration":""
+        }}
+    ]
 }}
 """
 
-STORYBOARD_PROMPT = """
-You are a visual storyboard artist and cinematographer.
-For each scene in the provided list, generate visual details and a specific text-to-image prompt to generate a storyboard panel.
-Your response MUST be a valid JSON object ONLY. Do not wrap the JSON in Markdown code blocks, and do not include any other text.
+# ============================================================
+# STORYBOARD
+# ============================================================
 
-Story Idea: {story_idea}
+STORYBOARD_PROMPT = """
+{global_rules}
+
+You are an expert storyboard artist and cinematographer.
+
+Story Idea:
+{story_idea}
+
+Characters:
+{characters_json}
+
 Scenes:
 {scenes_json}
 
-Expected JSON structure:
+Return ONLY valid JSON.
+
 {{
-  "storyboards": [
-    {{
-      "scene_number": 1,
-      "prompt": "Detailed cinematic text-to-image prompt (e.g. 'Cinematic storyboard frame, dark office at night, detective examining evidence, dramatic lighting, wide shot, film concept art.')",
-      "camera_angle": "Camera shot type and angle (e.g. Close-up, Low-angle wide shot, Medium tracking shot)",
-      "lighting": "Description of lighting (e.g. High-contrast noir lighting, warm golden hour, cold neon glow)",
-      "mood": "Emotional tone of the scene (e.g. Tense, Melancholic, Mystical, Thrilling)"
-    }}
-  ]
+    "storyboards":[
+        {{
+            "scene_number":1,
+            "prompt":"",
+            "camera_angle":"",
+            "lens":"",
+            "framing":"",
+            "visual_composition":"",
+            "character_positioning":"",
+            "foreground":"",
+            "background":"",
+            "lighting":"",
+            "color_palette":"",
+            "mood":"",
+            "cinematic_style":""
+        }}
+    ]
 }}
 """
+
+# ============================================================
+# SCREENPLAY
+# ============================================================
 
 SCREENPLAY_PROMPT = """
 You are an award-winning screenwriter.
-Generate a professional screenplay excerpt (approximately 2-3 scenes) based on the following story idea, character list, and target project length.
-Write in standard screenplay format (use uppercase for Scene Headings, Character Names, and Transitions). 
-Write dialogues and action descriptions clearly.
-Do not write JSON, do not include markdown code block formats unless you are returning standard text. Return the raw screenplay script.
 
-Story Idea: {story_idea}
-Genre: {genre}
-Characters: {characters_list}
-Target Duration/Length: {duration_length}
+Story Analysis:
+{story_analysis}
 
-Example screenplay format to follow:
-INT. OFFICE - NIGHT
+Narrative Structure:
+{narrative_structure}
 
-RAHUL enters the room.
+Characters:
+{characters_json}
 
-RAHUL
-What is this device?
+Scene Breakdown:
+{scene_breakdown}
 
-He picks up a small brass box, glowing with a soft purple light.
+Previous Scene Summary:
+{previous_scene}
 
-Now, write the screenplay script:
+Current Scene:
+{current_scene}
+
+Genre Guidance:
+{genre_guidance}
+
+Instructions:
+
+- Write ONLY the current scene.
+- Maintain continuity.
+- Follow industry screenplay standards.
+- Use proper scene headings.
+- Strong visual storytelling.
+- Character voices must remain consistent.
+
+Return screenplay text only.
 """
+
+# ============================================================
+# SOUND DESIGN
+# ============================================================
 
 SOUND_DESIGN_PROMPT = """
-You are a professional film sound designer and composer.
-Generate a comprehensive sound design blueprint for a film based on the story idea, characters list, and scene list below.
-Your response MUST be a valid JSON object ONLY. Do not wrap the JSON in Markdown code blocks (like ```json), and do not include any other text.
+{global_rules}
 
-Story Idea: {story_idea}
-Genre: {genre}
-Characters List: {characters_list}
-Scene Breakdown: {scenes_list}
+You are a professional sound designer.
 
-CRITICAL FORMATTING RULE: Do NOT use raw screenplay location headings (like 'INT. LOCATION - DAY') in the descriptions of music, ambience, foley, vocal treatment, or scene sound notes. Describe settings naturally in lowercase prose.
+Story Analysis:
+{story_analysis}
 
-Expected JSON structure:
+Characters:
+{characters_json}
+
+Scenes:
+{scenes_json}
+
+Return ONLY valid JSON.
+
 {{
-  "background_music": "Theme style, orchestration, tempo, emotional cue descriptions.",
-  "ambience": "Environmental background sounds for key scenes.",
-  "foley_effects": "Specific character actions requiring distinct foley sounds (footsteps, fabric, objects) tailored for characters in the list.",
-  "dialogue_treatment": "Vocal effects, filters, or specific dialogue styles (reverb, echoing, voiceovers).",
-  "scene_sound_notes": "A sequence of sound notes mapping major moments from the scene list to sound design cues."
+    "background_music":"",
+    "ambience":"",
+    "foley_effects":"",
+    "dialogue_treatment":"",
+    "scene_sound_notes":""
 }}
 """
+
+# ============================================================
+# PRODUCTION PLAN
+# ============================================================
 
 PRODUCTION_PLAN_PROMPT = """
-You are an experienced line producer and unit production manager.
-Generate a realistic production plan and breakdown for a low-to-medium budget shoot of the story based on the story idea, characters, and scenes below.
-Your response MUST be a valid JSON object ONLY. Do not wrap the JSON in Markdown code blocks, and do not include any other text.
+{global_rules}
 
-Story Idea: {story_idea}
-Genre: {genre}
-Characters List: {characters_list}
-Scene Breakdown: {scenes_list}
+You are a film line producer.
 
-CRITICAL FORMATTING RULE: Do NOT use raw screenplay location headings (like 'INT. LOCATION - DAY') in the descriptions of shooting locations, props, equipment, crew suggestions, or shoot days. Describe settings naturally in lowercase prose.
+Story Idea:
+{story_idea}
 
-Expected JSON structure:
+Characters:
+{characters_json}
+
+Scenes:
+{scenes_json}
+
+Return ONLY valid JSON.
+
 {{
-  "shooting_locations": "List of locations, description, and difficulty of obtaining access/permits matching the settings in the scene breakdown.",
-  "required_props": "Crucial props needed to tell the story for characters and scenes.",
-  "equipment": "Camera, lens package, lighting rigs, audio package suggested.",
-  "crew_suggestions": "Crucial crew roles needed for this project (e.g. Director of Photography, Gaffer, Sound Recordist).",
-  "estimated_shoot_days": "Total estimated shoot days (e.g. 5 days) with a brief justification based on scenes list."
+    "shooting_locations":"",
+    "required_props":"",
+    "equipment":"",
+    "crew_suggestions":"",
+    "estimated_shoot_days":""
 }}
 """
+
+# ============================================================
+# BUDGET PLAN
+# ============================================================
 
 BUDGET_PLAN_PROMPT = """
-You are a professional film line producer and estimator.
-Estimate the cost of pre-production, filming (production), and post-production for a low-to-medium budget film based on the story idea, characters, and scenes below.
-You MUST estimate all costs and budgets in Indian Rupees (INR, formatted with ₹ using standard Lakhs/Crores commas if appropriate).
-Your response MUST be a valid JSON object ONLY. Do not wrap the JSON in Markdown code blocks, and do not include any other text.
+{global_rules}
 
-Story Idea: {story_idea}
-Genre: {genre}
-Characters List: {characters_list}
-Scene Breakdown: {scenes_list}
+You are a professional film budget estimator.
 
-CRITICAL FORMATTING RULE: Do NOT use raw screenplay location headings (like 'INT. LOCATION - DAY') inside your budget details or cost saving tips. Describe settings naturally in lowercase prose.
+Story Analysis:
+{story_analysis}
 
-Expected JSON structure:
+Characters:
+{characters_json}
+
+Scenes:
+{scenes_json}
+
+Return ONLY valid JSON.
+
 {{
-  "pre_production": {{
-    "cost": "Estimated cost string in INR (e.g. ₹1,50,000)",
-    "details": "Detailed breakdown of pre-production expenses like scouting, script prep, casting, legal."
-  }},
-  "production": {{
-    "cost": "Estimated cost string in INR (e.g. ₹5,50,000)",
-    "details": "Detailed breakdown of camera gear, crew day-rates, props, location permits, catering matching scenes and cast size."
-  }},
-  "post_production": {{
-    "cost": "Estimated cost string in INR (e.g. ₹2,50,000)",
-    "details": "Detailed breakdown of editor fees, sound mixing, color grading, hard drives."
-  }},
-  "total_budget": "Total estimated budget sum string in INR (e.g. ₹9,50,000 INR)",
-  "cost_saving_tips": "Practical tips to reduce expenses for this specific project."
+    "pre_production": {{
+        "cost":"",
+        "details":""
+    }},
+
+    "production": {{
+        "cost":"",
+        "details":""
+    }},
+
+    "post_production": {{
+        "cost":"",
+        "details":""
+    }},
+
+    "total_budget":"",
+    "cost_saving_tips":""
 }}
 """
-
-GENERATE_SCENE_PROMPT = """
-You are an award-winning screenwriter.
-Write a professional, full-length screenplay script for Scene {scene_number} of a {duration_length} film.
-
-Story Idea: {story_idea}
-Genre: {genre}
-Characters: {characters_list}
-
-Overall Scene Breakdown:
-{scene_breakdown_summary}
-
-This Specific Scene to write:
-Scene Number: {scene_number}
-Location: {location}
-Characters in this scene: {scene_characters}
-Scene Objective: {objective}
-Estimated Duration: {duration}
-
-Follow standard industry screenplay format (use uppercase for Scene Heading on its own line, character names in uppercase centered/capitalized on their own line when they speak, parenthetical actions, dialogue, and clear action lines).
-Do not write JSON, do not include markdown blocks. Return only the raw screenplay script for this scene.
-
-Start the script for this scene now:
-"""
-

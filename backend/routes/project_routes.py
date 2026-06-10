@@ -175,7 +175,7 @@ def generate_all_preproduction(id):
     # ----------------------------------------------------
     # STAGE 1.5: Generate Characters (using refined_context)
     # ----------------------------------------------------
-    chars_doc = gemini_service.generate_characters(refined_context, genre)
+    chars_doc = gemini_service.generate_characters(refined_context, genre, project_id=id)
     if not chars_doc or "error" in chars_doc or "characters" not in chars_doc:
         chars_doc = {
             "characters": [
@@ -204,7 +204,7 @@ def generate_all_preproduction(id):
     
     def run_narrative_structure():
         nonlocal structure_res
-        res = gemini_service.generate_narrative_structure(refined_context, genre, duration_length, characters_list)
+        res = gemini_service.generate_narrative_structure(refined_context, genre, duration_length, characters_list, project_id=id)
         if res and "error" not in res:
             res["project_id"] = id
             res["created_at"] = datetime.datetime.utcnow().isoformat()
@@ -213,7 +213,7 @@ def generate_all_preproduction(id):
             
     def run_scene_breakdown():
         nonlocal scenes_res
-        res = gemini_service.generate_scenes(refined_context, genre, duration_length, characters_list)
+        res = gemini_service.generate_scenes(refined_context, genre, duration_length, characters_list, project_id=id)
         if not res or "error" in res or "scenes" not in res:
             res = {
                 "scenes": [
@@ -249,7 +249,7 @@ def generate_all_preproduction(id):
         def gen_scene(scene_item):
             s_num = scene_item.get("scene_number", 1)
             text = granite_service.generate_scene_script(
-                refined_context, genre, characters_list, duration_length, scene_item, scenes_list
+                refined_context, genre, characters_list, duration_length, scene_item, scenes_list, project_id=id
             )
             return s_num, text
             
@@ -290,7 +290,7 @@ def generate_all_preproduction(id):
         return text
 
     def run_storyboard():
-        res = gemini_service.generate_storyboard(refined_context, scenes_list)
+        res = gemini_service.generate_storyboard(refined_context, scenes_list, project_id=id)
         if not res or "error" in res:
             res = gemini_service._mock_storyboard(refined_context, scenes_list)
             
@@ -350,21 +350,21 @@ def generate_all_preproduction(id):
         firebase_service.set_document("storyboards", id, res)
             
     def run_sound_design():
-        res = granite_service.generate_sound_design(refined_context, genre, characters_list, scenes_list)
+        res = granite_service.generate_sound_design(refined_context, genre, characters_list, scenes_list, project_id=id)
         if res and "error" not in res:
             res["project_id"] = id
             res["created_at"] = datetime.datetime.utcnow().isoformat()
             firebase_service.set_document("sound_designs", id, res)
             
     def run_production_plan():
-        res = granite_service.generate_production_plan(refined_context, genre, characters_list, scenes_list)
+        res = granite_service.generate_production_plan(refined_context, genre, characters_list, scenes_list, project_id=id)
         if res and "error" not in res:
             res["project_id"] = id
             res["created_at"] = datetime.datetime.utcnow().isoformat()
             firebase_service.set_document("production_plans", id, res)
             
     def run_budget_plan():
-        res = granite_service.generate_budget_plan(refined_context, genre, characters_list, scenes_list)
+        res = granite_service.generate_budget_plan(refined_context, genre, characters_list, scenes_list, project_id=id)
         if res and "error" not in res:
             res["project_id"] = id
             res["created_at"] = datetime.datetime.utcnow().isoformat()

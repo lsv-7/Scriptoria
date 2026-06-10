@@ -831,7 +831,12 @@ FADE OUT.
             "logline": logline,
             "synopsis": synopsis,
             "audience_insights": audience_insights,
-            "tagline": tagline
+            "tagline": tagline,
+            "tone": "Suspenseful" if genre == "Thriller" else "Dramatic",
+            "rating": "PG-13",
+            "comparable_films": [],
+            "festival_potential": "Strong potential for indie film festivals.",
+            "streaming_audience_fit": "Excellent fit for SVOD streaming platforms."
         },
         "narrative_structure": {
             "act_1": {

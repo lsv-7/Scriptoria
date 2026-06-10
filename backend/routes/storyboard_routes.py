@@ -29,7 +29,7 @@ def generate_storyboard():
     if not scenes_doc or "scenes" not in scenes_doc:
         # Generate scenes automatically if missing
         print(">>> Scene breakdown missing. Auto-generating scenes for storyboard...")
-        scenes_doc = gemini_service.generate_scenes(project.get("story_idea"), project.get("genre"), project.get("duration_length", "Short Film"))
+        scenes_doc = gemini_service.generate_scenes(project.get("story_idea"), project.get("genre"), project.get("duration_length", "Short Film"), project_id=project_id)
         if not scenes_doc or "scenes" not in scenes_doc:
             return error_response("Failed to generate required scene breakdown for storyboard.", 500)
             
@@ -54,7 +54,7 @@ def generate_storyboard():
         story_idea = f"Pitch: {project.get('story_idea')}\nLogline: {format_val_str(story_analysis.get('logline'))}\nSynopsis: {format_val_str(story_analysis.get('synopsis'))}\nTheme: {format_val_str(story_analysis.get('theme'))}"
 
     # Generate storyboard prompts
-    storyboard_data = gemini_service.generate_storyboard(story_idea, scenes_list)
+    storyboard_data = gemini_service.generate_storyboard(story_idea, scenes_list, project_id=project_id)
     if not storyboard_data or "error" in storyboard_data:
         return error_response("Failed to generate storyboard cards from Gemini.", 500, details=storyboard_data)
         

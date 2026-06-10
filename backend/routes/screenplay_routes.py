@@ -47,7 +47,7 @@ def generate_screenplay():
     scene_doc = firebase_service.get_document("scene_breakdowns", project_id)
     if not scene_doc or "scenes" not in scene_doc or not scene_doc["scenes"]:
         from backend.services.gemini_service import gemini_service
-        scenes_data = gemini_service.generate_scenes(story_idea, genre, duration_length)
+        scenes_data = gemini_service.generate_scenes(story_idea, genre, duration_length, project_id=project_id)
         if not scenes_data or "error" in scenes_data or not scenes_data.get("scenes"):
             # Create a simple default list of scenes if generation fails
             scenes_data = {
@@ -72,7 +72,7 @@ def generate_screenplay():
     characters_doc = firebase_service.get_document("characters", project_id)
     if not characters_doc or "characters" not in characters_doc or not characters_doc["characters"]:
         from backend.services.gemini_service import gemini_service
-        characters_doc = gemini_service.generate_characters(story_idea, genre)
+        characters_doc = gemini_service.generate_characters(story_idea, genre, project_id=project_id)
         if characters_doc and "characters" in characters_doc:
             characters_doc["project_id"] = project_id
             characters_doc["created_at"] = datetime.datetime.utcnow().isoformat()
@@ -101,7 +101,7 @@ def generate_screenplay():
             return error_response(f"Scene number {s_num_int} not found in the project's scene breakdown.", 404)
             
         scene_text = granite_service.generate_scene_script(
-            story_idea, genre, characters_list, duration_length, target_scene, scenes
+            story_idea, genre, characters_list, duration_length, target_scene, scenes, project_id=project_id
         )
         if not scene_text:
             return error_response(f"Failed to generate screenplay for Scene {s_num_int}.", 500)
@@ -114,7 +114,7 @@ def generate_screenplay():
         def gen_scene(scene_item):
             s_num = scene_item.get("scene_number", 1)
             text = granite_service.generate_scene_script(
-                story_idea, genre, characters_list, duration_length, scene_item, scenes
+                story_idea, genre, characters_list, duration_length, scene_item, scenes, project_id=project_id
             )
             return s_num, text
             

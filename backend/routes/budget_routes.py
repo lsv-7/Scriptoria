@@ -45,7 +45,7 @@ def generate_budget_plan():
     from backend.services.gemini_service import gemini_service
     characters_doc = firebase_service.get_document("characters", project_id)
     if not characters_doc or "characters" not in characters_doc or not characters_doc["characters"]:
-        characters_doc = gemini_service.generate_characters(story_idea, genre)
+        characters_doc = gemini_service.generate_characters(story_idea, genre, project_id=project_id)
         if characters_doc and "characters" in characters_doc:
             characters_doc["project_id"] = project_id
             characters_doc["created_at"] = datetime.datetime.utcnow().isoformat()
@@ -57,7 +57,7 @@ def generate_budget_plan():
     scene_doc = firebase_service.get_document("scene_breakdowns", project_id)
     if not scene_doc or "scenes" not in scene_doc or not scene_doc["scenes"]:
         duration_length = project.get("duration_length", "Short Film")
-        scene_doc = gemini_service.generate_scenes(story_idea, genre, duration_length, characters_list)
+        scene_doc = gemini_service.generate_scenes(story_idea, genre, duration_length, characters_list, project_id=project_id)
         if scene_doc and "scenes" in scene_doc:
             scene_doc["project_id"] = project_id
             scene_doc["created_at"] = datetime.datetime.utcnow().isoformat()
@@ -66,7 +66,7 @@ def generate_budget_plan():
     scenes_list = scene_doc.get("scenes", []) if scene_doc else []
     
     # Generate budget plan
-    budget_data = granite_service.generate_budget_plan(story_idea, genre, characters_list, scenes_list)
+    budget_data = granite_service.generate_budget_plan(story_idea, genre, characters_list, scenes_list, project_id=project_id)
     if not budget_data or "error" in budget_data:
         return error_response("Failed to generate budget plan from IBM Granite AI.", 500, details=budget_data)
         

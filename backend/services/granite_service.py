@@ -3,12 +3,14 @@ import json
 import google.generativeai as genai
 from backend.config import Config
 from backend.utils.prompts import (
+    GLOBAL_RULES,
+    GENRE_GUIDELINES,
     SCREENPLAY_PROMPT,
     SOUND_DESIGN_PROMPT,
     PRODUCTION_PLAN_PROMPT,
     BUDGET_PLAN_PROMPT
 )
-from backend.utils.helpers import clean_json_response, clean_prose_data
+from backend.utils.helpers import clean_json_response, clean_prose_data, parse_combined_story_idea
 from backend.utils.story_generator import generate_mock_story
 
 # Global/module level variables for rate limit cooldowns
@@ -128,43 +130,47 @@ class GraniteService:
                 print(f"Error calling Gemini API in GraniteService: {e}")
             return None
 
-    def generate_screenplay(self, story_idea, genre, characters_list, duration_length="Short Film"):
+    def generate_screenplay(self, story_idea, genre, characters_list, duration_length="Short Film", project_id=None):
         """Generates a professional screenplay script."""
-        chars_str = ", ".join([c.get("name", "") for c in characters_list]) if isinstance(characters_list, list) else str(characters_list)
-        formatted_prompt = SCREENPLAY_PROMPT.format(
-            story_idea=story_idea,
-            genre=genre,
-            characters_list=chars_str,
-            duration_length=duration_length
-        )
-        
-        # 1. Try Groq
-        response_text = self._generate_groq(formatted_prompt, max_tokens=1500)
-        
-        # 2. Try Gemini
-        if not response_text:
-            response_text = self._generate(formatted_prompt, max_tokens=1500)
-            
-        if response_text:
-            return response_text.strip()
-            
-        # Mock Fallback
-        return self._mock_screenplay(story_idea, genre, characters_list)
+        dummy_scene = {
+            "scene_number": 1,
+            "location": "INT. APARTMENT - DAY",
+            "characters": ", ".join([c.get("name", "") if isinstance(c, dict) else str(c) for c in characters_list]) if characters_list else "Characters",
+            "objective": "Introduction of characters and goals.",
+            "duration": "2 mins"
+        }
+        return self.generate_scene_script(story_idea, genre, characters_list, duration_length, dummy_scene, [dummy_scene], project_id)
 
-    def generate_sound_design(self, story_idea, genre, characters_list=None, scenes_list=None):
+    def generate_sound_design(self, story_idea, genre, characters_list=None, scenes_list=None, project_id=None):
         """Generates background music, ambience, foley, vocal treatment, sound notes."""
-        chars_str = ", ".join([c.get("name", "") if isinstance(c, dict) else str(c) for c in characters_list]) if isinstance(characters_list, list) else str(characters_list or "as described in the story")
-        scenes_str = ""
-        if isinstance(scenes_list, list):
-            scenes_str = "\n".join([f"Scene {s.get('scene_number', i+1)}: {s.get('location', 'INT. SCENE - DAY')} - Characters: {s.get('characters', '')} - Objective: {s.get('objective', '')}" for i, s in enumerate(scenes_list)])
-        else:
-            scenes_str = str(scenes_list or "as described in the story")
-
+        parsed_idea = parse_combined_story_idea(story_idea)
+        
+        if not characters_list and project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                chars_doc = firebase_service.get_document("characters", project_id)
+                if chars_doc and "characters" in chars_doc:
+                    characters_list = chars_doc["characters"]
+            except Exception:
+                pass
+                
+        if not scenes_list and project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                scenes_doc = firebase_service.get_document("scene_breakdowns", project_id)
+                if scenes_doc and "scenes" in scenes_doc:
+                    scenes_list = scenes_doc["scenes"]
+            except Exception:
+                pass
+                
+        chars_json = json.dumps({"characters": characters_list or []}, indent=2)
+        scenes_json = json.dumps({"scenes": scenes_list or []}, indent=2)
+        
         formatted_prompt = SOUND_DESIGN_PROMPT.format(
-            story_idea=story_idea,
-            genre=genre,
-            characters_list=chars_str,
-            scenes_list=scenes_str
+            global_rules=GLOBAL_RULES,
+            story_analysis=parsed_idea["story_analysis"],
+            characters_json=chars_json,
+            scenes_json=scenes_json
         )
         
         # 1. Try Groq
@@ -182,20 +188,36 @@ class GraniteService:
         # Mock Fallback
         return clean_prose_data(self._mock_sound_design(story_idea, genre, characters_list))
 
-    def generate_production_plan(self, story_idea, genre, characters_list=None, scenes_list=None):
+    def generate_production_plan(self, story_idea, genre, characters_list=None, scenes_list=None, project_id=None):
         """Generates shooting locations, props, equipment, crew, and estimated shoot days."""
-        chars_str = ", ".join([c.get("name", "") if isinstance(c, dict) else str(c) for c in characters_list]) if isinstance(characters_list, list) else str(characters_list or "as described in the story")
-        scenes_str = ""
-        if isinstance(scenes_list, list):
-            scenes_str = "\n".join([f"Scene {s.get('scene_number', i+1)}: {s.get('location', 'INT. SCENE - DAY')} - Characters: {s.get('characters', '')} - Objective: {s.get('objective', '')}" for i, s in enumerate(scenes_list)])
-        else:
-            scenes_str = str(scenes_list or "as described in the story")
-
+        parsed_idea = parse_combined_story_idea(story_idea)
+        
+        if not characters_list and project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                chars_doc = firebase_service.get_document("characters", project_id)
+                if chars_doc and "characters" in chars_doc:
+                    characters_list = chars_doc["characters"]
+            except Exception:
+                pass
+                
+        if not scenes_list and project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                scenes_doc = firebase_service.get_document("scene_breakdowns", project_id)
+                if scenes_doc and "scenes" in scenes_doc:
+                    scenes_list = scenes_doc["scenes"]
+            except Exception:
+                pass
+                
+        chars_json = json.dumps({"characters": characters_list or []}, indent=2)
+        scenes_json = json.dumps({"scenes": scenes_list or []}, indent=2)
+        
         formatted_prompt = PRODUCTION_PLAN_PROMPT.format(
-            story_idea=story_idea,
-            genre=genre,
-            characters_list=chars_str,
-            scenes_list=scenes_str
+            global_rules=GLOBAL_RULES,
+            story_idea=parsed_idea["pitch"],
+            characters_json=chars_json,
+            scenes_json=scenes_json
         )
         
         # 1. Try Groq
@@ -213,20 +235,36 @@ class GraniteService:
         # Mock Fallback
         return clean_prose_data(self._mock_production_plan(story_idea, genre, characters_list))
 
-    def generate_budget_plan(self, story_idea, genre, characters_list=None, scenes_list=None):
+    def generate_budget_plan(self, story_idea, genre, characters_list=None, scenes_list=None, project_id=None):
         """Generates dynamic pre-production, production, and post-production budget estimates."""
-        chars_str = ", ".join([c.get("name", "") if isinstance(c, dict) else str(c) for c in characters_list]) if isinstance(characters_list, list) else str(characters_list or "as described in the story")
-        scenes_str = ""
-        if isinstance(scenes_list, list):
-            scenes_str = "\n".join([f"Scene {s.get('scene_number', i+1)}: {s.get('location', 'INT. SCENE - DAY')} - Characters: {s.get('characters', '')} - Objective: {s.get('objective', '')}" for i, s in enumerate(scenes_list)])
-        else:
-            scenes_str = str(scenes_list or "as described in the story")
-
+        parsed_idea = parse_combined_story_idea(story_idea)
+        
+        if not characters_list and project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                chars_doc = firebase_service.get_document("characters", project_id)
+                if chars_doc and "characters" in chars_doc:
+                    characters_list = chars_doc["characters"]
+            except Exception:
+                pass
+                
+        if not scenes_list and project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                scenes_doc = firebase_service.get_document("scene_breakdowns", project_id)
+                if scenes_doc and "scenes" in scenes_doc:
+                    scenes_list = scenes_doc["scenes"]
+            except Exception:
+                pass
+                
+        chars_json = json.dumps({"characters": characters_list or []}, indent=2)
+        scenes_json = json.dumps({"scenes": scenes_list or []}, indent=2)
+        
         formatted_prompt = BUDGET_PLAN_PROMPT.format(
-            story_idea=story_idea,
-            genre=genre,
-            characters_list=chars_str,
-            scenes_list=scenes_str
+            global_rules=GLOBAL_RULES,
+            story_analysis=parsed_idea["story_analysis"],
+            characters_json=chars_json,
+            scenes_json=scenes_json
         )
         
         # 1. Try Groq
@@ -244,33 +282,79 @@ class GraniteService:
         # Mock Fallback
         return clean_prose_data(self._mock_budget_plan(story_idea, genre, characters_list))
 
-    def generate_scene_script(self, story_idea, genre, characters_list, duration_length, scene, all_scenes):
+    def generate_scene_script(self, story_idea, genre, characters_list, duration_length, scene, all_scenes, project_id=None):
         """Generates a professional screenplay script for a specific scene."""
-        scene_number = scene.get("scene_number", 1)
-        location = scene.get("location", "INT. LOCATION - DAY")
-        scene_characters = scene.get("characters", "")
-        objective = scene.get("objective", "")
-        duration = scene.get("duration", "2 mins")
+        parsed_idea = parse_combined_story_idea(story_idea)
         
-        # Build scene breakdown summary for context
-        scene_breakdown_summary = ""
-        for s in all_scenes:
-            scene_breakdown_summary += f"Scene {s.get('scene_number')}: {s.get('location')} - Characters: {s.get('characters')} - Objective: {s.get('objective')}\n"
+        # 1. narrative_structure
+        narrative_structure_str = ""
+        if project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                ns_doc = firebase_service.get_document("narrative_structures", project_id)
+                if ns_doc:
+                    ns_clean = {k: v for k, v in ns_doc.items() if k not in ["project_id", "created_at", "id"]}
+                    narrative_structure_str = json.dumps(ns_clean, indent=2)
+            except Exception:
+                pass
+        if not narrative_structure_str:
+            narrative_structure_str = "Three-act structure following the story guidelines."
             
-        chars_str = ", ".join([c.get("name", "") for c in characters_list]) if isinstance(characters_list, list) else str(characters_list)
+        # 2. characters_json
+        if not characters_list and project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                chars_doc = firebase_service.get_document("characters", project_id)
+                if chars_doc and "characters" in chars_doc:
+                    characters_list = chars_doc["characters"]
+            except Exception:
+                pass
+        chars_json = json.dumps({"characters": characters_list or []}, indent=2)
         
-        from backend.utils.prompts import GENERATE_SCENE_PROMPT
-        formatted_prompt = GENERATE_SCENE_PROMPT.format(
-            story_idea=story_idea,
-            genre=genre,
-            characters_list=chars_str,
-            duration_length=duration_length,
-            scene_number=scene_number,
-            location=location,
-            scene_characters=scene_characters,
-            objective=objective,
-            duration=duration,
-            scene_breakdown_summary=scene_breakdown_summary
+        # 3. scene_breakdown
+        scene_breakdown_str = json.dumps({"scenes": all_scenes or []}, indent=2)
+        
+        # 4. previous_scene
+        previous_scene_str = ""
+        scene_number = scene.get("scene_number", 1)
+        if scene_number > 1 and project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                screenplay_doc = firebase_service.get_document("screenplays", project_id)
+                if screenplay_doc and "scene_scripts" in screenplay_doc:
+                    prev_scene_text = screenplay_doc["scene_scripts"].get(str(scene_number - 1))
+                    if prev_scene_text:
+                        previous_scene_str = prev_scene_text.strip()
+            except Exception:
+                pass
+                
+        if not previous_scene_str:
+            prev_scene = next((s for s in all_scenes if int(s.get("scene_number", 0)) == scene_number - 1), None)
+            if prev_scene:
+                previous_scene_str = f"Scene {scene_number - 1}: {prev_scene.get('location')} - Objective: {prev_scene.get('objective')}."
+            else:
+                previous_scene_str = "No previous scene (this is the opening scene)."
+                
+        # 5. current_scene
+        current_scene_str = json.dumps({
+            "scene_number": scene_number,
+            "location": scene.get("location", "INT. SCENE - DAY"),
+            "characters": scene.get("characters", ""),
+            "objective": scene.get("objective", ""),
+            "duration": scene.get("duration", "2 mins")
+        }, indent=2)
+        
+        # 6. genre_guidance
+        genre_guidance = GENRE_GUIDELINES.get(genre, "")
+        
+        formatted_prompt = SCREENPLAY_PROMPT.format(
+            story_analysis=parsed_idea["story_analysis"],
+            narrative_structure=narrative_structure_str,
+            characters_json=chars_json,
+            scene_breakdown=scene_breakdown_str,
+            previous_scene=previous_scene_str,
+            current_scene=current_scene_str,
+            genre_guidance=genre_guidance
         )
         
         # 1. Try Groq
@@ -289,10 +373,10 @@ class GraniteService:
             story_idea=story_idea,
             genre=genre,
             scene_number=scene_number,
-            location=location,
-            scene_characters=scene_characters,
-            objective=objective,
-            duration=duration,
+            location=scene.get("location", "INT. SCENE - DAY"),
+            scene_characters=scene.get("characters", ""),
+            objective=scene.get("objective", ""),
+            duration=scene.get("duration", "2 mins"),
             characters_list=characters_list
         )
 

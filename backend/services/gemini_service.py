@@ -3,13 +3,15 @@ import json
 import random
 from backend.config import Config
 from backend.utils.prompts import (
+    GLOBAL_RULES,
+    GENRE_GUIDELINES,
     STORY_ANALYSIS_PROMPT,
     NARRATIVE_STRUCTURE_PROMPT,
     CHARACTER_GENERATOR_PROMPT,
     SCENE_BREAKDOWN_PROMPT,
     STORYBOARD_PROMPT
 )
-from backend.utils.helpers import clean_json_response, clean_prose_data
+from backend.utils.helpers import clean_json_response, clean_prose_data, parse_combined_story_idea
 from backend.utils.story_generator import generate_mock_story
 
 # Try to import google-generativeai. If missing, we fall back to mock generation.
@@ -124,16 +126,19 @@ class GeminiService:
             return None
 
     def generate_story_analysis(self, story_idea, genre, target_audience, duration_length="Short Film"):
-        """Generates genre analysis, theme, logline, synopsis, audience insights, tagline."""
+        """Generates genre analysis, theme, logline, synopsis, audience insights, tagline, tone, rating, comparable_films, festival_potential, streaming_audience_fit."""
+        genre_guidance = GENRE_GUIDELINES.get(genre, "")
         formatted_prompt = STORY_ANALYSIS_PROMPT.format(
+            global_rules=GLOBAL_RULES,
             story_idea=story_idea,
             genre=genre,
+            genre_guidance=genre_guidance,
             target_audience=target_audience,
             duration_length=duration_length
         )
         
         # 1. Try Groq
-        response_text = self._generate_groq(formatted_prompt, max_tokens=1024)
+        response_text = self._generate_groq(formatted_prompt, max_tokens=1200)
         
         # 2. Try Gemini
         if not response_text:
@@ -142,23 +147,47 @@ class GeminiService:
         if response_text:
             parsed = clean_json_response(response_text)
             if parsed and "genre_analysis" in parsed:
+                # Merge defaults for any missing new keys
+                defaults = {
+                    "tone": "Suspenseful" if genre == "Thriller" else "Dramatic",
+                    "rating": "PG-13",
+                    "comparable_films": [],
+                    "festival_potential": "Strong potential for indie film festivals.",
+                    "streaming_audience_fit": "Excellent fit for SVOD streaming platforms."
+                }
+                for k, v in defaults.items():
+                    if k not in parsed:
+                        parsed[k] = v
                 return clean_prose_data(parsed)
                 
         # Mock Fallback
         return clean_prose_data(self._mock_story_analysis(story_idea, genre, target_audience, duration_length))
 
-    def generate_narrative_structure(self, story_idea, genre, duration_length="Short Film", characters_list=None):
+    def generate_narrative_structure(self, story_idea, genre, duration_length="Short Film", characters_list=None, project_id=None):
         """Generates Act 1, 2, 3 narrative structure."""
-        chars_str = ", ".join([c.get("name", "") for c in characters_list]) if isinstance(characters_list, list) else str(characters_list or "as described in the story idea")
+        parsed_idea = parse_combined_story_idea(story_idea)
+        
+        if not characters_list and project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                chars_doc = firebase_service.get_document("characters", project_id)
+                if chars_doc and "characters" in chars_doc:
+                    characters_list = chars_doc["characters"]
+            except Exception:
+                pass
+                
+        chars_json = json.dumps({"characters": characters_list or []}, indent=2)
+        
         formatted_prompt = NARRATIVE_STRUCTURE_PROMPT.format(
-            story_idea=story_idea,
+            global_rules=GLOBAL_RULES,
+            story_analysis=parsed_idea["story_analysis"],
+            characters_json=chars_json,
             genre=genre,
-            duration_length=duration_length,
-            characters_list=chars_str
+            duration_length=duration_length
         )
         
         # 1. Try Groq
-        response_text = self._generate_groq(formatted_prompt, max_tokens=1024)
+        response_text = self._generate_groq(formatted_prompt, max_tokens=1200)
         
         # 2. Try Gemini
         if not response_text:
@@ -172,15 +201,19 @@ class GeminiService:
         # Mock Fallback
         return clean_prose_data(self._mock_narrative_structure(story_idea, genre, duration_length, characters_list))
 
-    def generate_characters(self, story_idea, genre):
+    def generate_characters(self, story_idea, genre, project_id=None):
         """Generates 3-4 detailed character profiles."""
+        parsed_idea = parse_combined_story_idea(story_idea)
+        
         formatted_prompt = CHARACTER_GENERATOR_PROMPT.format(
-            story_idea=story_idea,
+            global_rules=GLOBAL_RULES,
+            story_analysis=parsed_idea["story_analysis"],
+            story_idea=parsed_idea["pitch"],
             genre=genre
         )
         
         # 1. Try Groq
-        response_text = self._generate_groq(formatted_prompt, max_tokens=1024)
+        response_text = self._generate_groq(formatted_prompt, max_tokens=1500)
         
         # 2. Try Gemini
         if not response_text:
@@ -194,18 +227,45 @@ class GeminiService:
         # Mock Fallback
         return clean_prose_data(self._mock_characters(story_idea, genre))
 
-    def generate_scenes(self, story_idea, genre, duration_length="Short Film", characters_list=None):
+    def generate_scenes(self, story_idea, genre, duration_length="Short Film", characters_list=None, project_id=None):
         """Generates core scene breakdowns."""
-        chars_str = ", ".join([c.get("name", "") for c in characters_list]) if isinstance(characters_list, list) else str(characters_list or "as described in the story idea")
+        parsed_idea = parse_combined_story_idea(story_idea)
+        
+        if not characters_list and project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                chars_doc = firebase_service.get_document("characters", project_id)
+                if chars_doc and "characters" in chars_doc:
+                    characters_list = chars_doc["characters"]
+            except Exception:
+                pass
+                
+        chars_json = json.dumps({"characters": characters_list or []}, indent=2)
+        
+        narrative_structure_str = ""
+        if project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                ns_doc = firebase_service.get_document("narrative_structures", project_id)
+                if ns_doc:
+                    ns_clean = {k: v for k, v in ns_doc.items() if k not in ["project_id", "created_at", "id"]}
+                    narrative_structure_str = json.dumps(ns_clean, indent=2)
+            except Exception:
+                pass
+                
+        if not narrative_structure_str:
+            narrative_structure_str = "Three-act structure following the story guidelines."
+            
         formatted_prompt = SCENE_BREAKDOWN_PROMPT.format(
-            story_idea=story_idea,
-            genre=genre,
-            duration_length=duration_length,
-            characters_list=chars_str
+            global_rules=GLOBAL_RULES,
+            story_analysis=parsed_idea["story_analysis"],
+            narrative_structure=narrative_structure_str,
+            characters_json=chars_json,
+            duration_length=duration_length
         )
         
         # 1. Try Groq
-        response_text = self._generate_groq(formatted_prompt, max_tokens=1024)
+        response_text = self._generate_groq(formatted_prompt, max_tokens=1500)
         
         # 2. Try Gemini
         if not response_text:
@@ -219,16 +279,31 @@ class GeminiService:
         # Mock Fallback
         return clean_prose_data(self._mock_scenes(story_idea, genre, duration_length, characters_list))
 
-    def generate_storyboard(self, story_idea, scenes_list):
+    def generate_storyboard(self, story_idea, scenes_list, project_id=None):
         """Generates camera angle, mood, lighting, and prompt for storyboard frames."""
+        parsed_idea = parse_combined_story_idea(story_idea)
+        
+        characters_list = []
+        if project_id:
+            try:
+                from backend.services.firebase_service import firebase_service
+                chars_doc = firebase_service.get_document("characters", project_id)
+                if chars_doc and "characters" in chars_doc:
+                    characters_list = chars_doc["characters"]
+            except Exception:
+                pass
+        chars_json = json.dumps({"characters": characters_list}, indent=2)
         scenes_json = json.dumps({"scenes": scenes_list}, indent=2)
+        
         formatted_prompt = STORYBOARD_PROMPT.format(
-            story_idea=story_idea,
+            global_rules=GLOBAL_RULES,
+            story_idea=parsed_idea["pitch"],
+            characters_json=chars_json,
             scenes_json=scenes_json
         )
         
         # 1. Try Groq
-        response_text = self._generate_groq(formatted_prompt, max_tokens=1200)
+        response_text = self._generate_groq(formatted_prompt, max_tokens=1500)
         
         # 2. Try Gemini
         if not response_text:
@@ -245,12 +320,23 @@ class GeminiService:
 
     # --- MOCK GENERATION FALLBACKS ---
     def _mock_story_analysis(self, story_idea, genre, target_audience, duration_length="Short Film"):
-        return generate_mock_story(
+        res = generate_mock_story(
             story_idea=story_idea,
             genre=genre,
             target_audience=target_audience,
             duration_length=duration_length
         )["story_analysis"]
+        defaults = {
+            "tone": "Suspenseful" if genre == "Thriller" else "Dramatic",
+            "rating": "PG-13",
+            "comparable_films": [],
+            "festival_potential": "Strong potential for indie film festivals.",
+            "streaming_audience_fit": "Excellent fit for SVOD streaming platforms."
+        }
+        for k, v in defaults.items():
+            if k not in res:
+                res[k] = v
+        return res
 
     def _mock_narrative_structure(self, story_idea, genre, duration_length="Short Film", characters_list=None):
         return generate_mock_story(

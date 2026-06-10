@@ -45,7 +45,7 @@ def generate_scenes():
     # Retrieve or auto-generate characters to maintain consistent names
     characters_doc = firebase_service.get_document("characters", project_id)
     if not characters_doc or "characters" not in characters_doc or not characters_doc["characters"]:
-        characters_doc = gemini_service.generate_characters(story_idea, genre)
+        characters_doc = gemini_service.generate_characters(story_idea, genre, project_id=project_id)
         if characters_doc and "characters" in characters_doc:
             characters_doc["project_id"] = project_id
             characters_doc["created_at"] = datetime.datetime.utcnow().isoformat()
@@ -56,7 +56,7 @@ def generate_scenes():
         characters_list = characters_doc["characters"]
         
     # Generate scenes
-    scenes_data = gemini_service.generate_scenes(story_idea, genre, duration_length, characters_list)
+    scenes_data = gemini_service.generate_scenes(story_idea, genre, duration_length, characters_list, project_id=project_id)
     if not scenes_data or "error" in scenes_data:
         return error_response("Failed to generate scene breakdown from Gemini.", 500, details=scenes_data)
         

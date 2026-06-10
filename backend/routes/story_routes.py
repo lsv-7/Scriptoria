@@ -82,7 +82,7 @@ def generate_structure():
     # Retrieve or auto-generate characters to maintain consistent names
     characters_doc = firebase_service.get_document("characters", project_id)
     if not characters_doc or "characters" not in characters_doc or not characters_doc["characters"]:
-        characters_doc = gemini_service.generate_characters(story_idea, genre)
+        characters_doc = gemini_service.generate_characters(story_idea, genre, project_id=project_id)
         if characters_doc and "characters" in characters_doc:
             characters_doc["project_id"] = project_id
             characters_doc["created_at"] = datetime.datetime.utcnow().isoformat()
@@ -93,7 +93,7 @@ def generate_structure():
         characters_list = characters_doc["characters"]
         
     # Generate narrative structure
-    structure_data = gemini_service.generate_narrative_structure(story_idea, genre, duration_length, characters_list)
+    structure_data = gemini_service.generate_narrative_structure(story_idea, genre, duration_length, characters_list, project_id=project_id)
     if not structure_data or "error" in structure_data:
         return error_response("Failed to generate narrative structure from Gemini.", 500, details=structure_data)
         

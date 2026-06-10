@@ -275,10 +275,15 @@ class ExportService:
         if scenes:
             table_data = [["Scene", "Location Heading", "Characters", "Objective", "Est. Dur"]]
             for s in scenes:
+                chars_val = s.get("characters", "")
+                if isinstance(chars_val, list):
+                    chars_str = ", ".join([str(c) for c in chars_val])
+                else:
+                    chars_str = str(chars_val or "")
                 table_data.append([
                     str(s.get("scene_number", "")),
                     s.get("location", ""),
-                    s.get("characters", ""),
+                    chars_str,
                     s.get("objective", ""),
                     s.get("duration", "")
                 ])
@@ -495,7 +500,14 @@ class ExportService:
                 row_cells = table.add_row().cells
                 row_cells[0].text = str(s.get("scene_number", ""))
                 row_cells[1].text = s.get("location", "")
-                row_cells[2].text = s.get("characters", "")
+                
+                chars_val = s.get("characters", "")
+                if isinstance(chars_val, list):
+                    chars_str = ", ".join([str(c) for c in chars_val])
+                else:
+                    chars_str = str(chars_val or "")
+                    
+                row_cells[2].text = chars_str
                 row_cells[3].text = s.get("objective", "")
                 row_cells[4].text = s.get("duration", "")
         else:
@@ -641,7 +653,12 @@ class ExportService:
         scenes = data.get("scene_breakdown", {}).get("scenes", [])
         for s in scenes:
             out.append(f"\nScene {s.get('scene_number', 'N/A')}: {s.get('location', 'N/A')}")
-            out.append(f"  Characters: {s.get('characters', 'N/A')}")
+            chars_val = s.get("characters", "")
+            if isinstance(chars_val, list):
+                chars_str = ", ".join([str(c) for c in chars_val])
+            else:
+                chars_str = str(chars_val or "N/A")
+            out.append(f"  Characters: {chars_str}")
             out.append(f"  Objective: {s.get('objective', 'N/A')}")
             out.append(f"  Duration: {s.get('duration', 'N/A')}")
         out.append("\n\n")
