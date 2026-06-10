@@ -1520,7 +1520,7 @@ async function sendChatMessage() {
         if (sendBtn) sendBtn.disabled = false;
         chatInput.focus();
         
-        if (response && response.success && response.data && response.data.response) {
+        if (response && response.status === "success" && response.data && response.data.response) {
             const reply = response.data.response;
             appendChatMessage("assistant", reply);
             
