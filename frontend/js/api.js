@@ -133,6 +133,10 @@ class CineForgeAPI {
         return this._request("/project/" + projectId + "/generate-all", "POST");
     }
 
+    async sendChatbotMessage(projectId, message, history) {
+        return this._request("/project/chat", "POST", { project_id: projectId, message, history });
+    }
+
     // --- Document Exports ---
     async exportProject(projectId, format) {
         const url = `${this.baseUrl}/export-project`;

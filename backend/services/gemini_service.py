@@ -317,6 +317,31 @@ class GeminiService:
         # Mock Fallback
         return clean_prose_data(self._mock_storyboard(story_idea, scenes_list))
 
+    def chat_with_copilot(self, project_context, history, user_message):
+        """Processes copilot chat interactions with project context awareness."""
+        # Build prompt
+        prompt = f"{project_context}\n\n"
+        prompt += "CONVERSATION HISTORY:\n"
+        for msg in history:
+            role = "User" if msg.get("role") == "user" else "Copilot"
+            prompt += f"{role}: {msg.get('content')}\n"
+            
+        prompt += f"User: {user_message}\n"
+        prompt += "Copilot: "
+        
+        # 1. Try Groq
+        response_text = self._generate_groq(prompt, max_tokens=1024)
+        
+        # 2. Try Gemini
+        if not response_text:
+            response_text = self._generate(prompt)
+            
+        if response_text:
+            return response_text.strip()
+            
+        # Fallback
+        return "I'm having trouble connecting to my creative database right now, but I'm here to help brainstorm your story once connection is restored!"
+
 
     # --- MOCK GENERATION FALLBACKS ---
     def _mock_story_analysis(self, story_idea, genre, target_audience, duration_length="Short Film"):

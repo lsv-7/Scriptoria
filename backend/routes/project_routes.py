@@ -383,3 +383,73 @@ def generate_all_preproduction(id):
         f.result()
         
     return success_response(None, "All pre-production assets generated successfully.")
+
+@project_bp.route("/project/chat", methods=["POST"])
+@login_required
+def chat_with_project_copilot():
+    """AI chatbot route to brainstorm and consult on active projects."""
+    data = request.get_json() or {}
+    project_id = data.get("project_id")
+    message = data.get("message", "").strip()
+    history = data.get("history", [])
+    
+    if not project_id:
+        return error_response("Field 'project_id' is required.", 400)
+    if not message:
+        return error_response("Field 'message' is required.", 400)
+        
+    project = firebase_service.get_document("projects", project_id)
+    if not project:
+        return error_response("Project not found.", 404)
+        
+    if project.get("user_id") != request.current_user.get("uid"):
+        return error_response("Access denied.", 403)
+        
+    # Compile a comprehensive project metadata context block
+    project_context = f"""
+You are CineForge Copilot, a master screenwriter and film producer assisting a filmmaker with their active project: "{project.get('project_name', 'Untitled')}".
+Your task is to answer user questions, brainstorm plot ideas, suggest character dialogues, or assist in scene breakdowns.
+
+PROJECT OUTLINE:
+- Genre: {project.get('genre', 'N/A')}
+- Target Duration: {project.get('duration_length', 'N/A')}
+- Pitch/Concept: {project.get('story_idea', 'N/A')}
+"""
+
+    # Fetch other available assets
+    try:
+        analysis = firebase_service.get_document("story_analysis", project_id)
+        if analysis:
+            project_context += f"\nSTORY OUTLINE:\n- Logline: {analysis.get('logline', 'N/A')}\n- Synopsis: {analysis.get('synopsis', 'N/A')}\n- Theme: {analysis.get('theme', 'N/A')}\n"
+    except Exception:
+        pass
+
+    try:
+        characters = firebase_service.get_document("characters", project_id)
+        if characters and "characters" in characters:
+            project_context += "\nCHARACTERS:\n"
+            for c in characters["characters"]:
+                project_context += f"- {c.get('name')} (Age: {c.get('age')}): Backstory: {c.get('backstory')}. Goal: {c.get('goals')}. Personality: {c.get('personality')}\n"
+    except Exception:
+        pass
+
+    try:
+        scenes_doc = firebase_service.get_document("scene_breakdowns", project_id)
+        if scenes_doc and "scenes" in scenes_doc:
+            project_context += "\nSCENE BREAKDOWN LIST:\n"
+            for s in scenes_doc["scenes"]:
+                project_context += f"- Scene {s.get('scene_number')}: {s.get('location')} - Objective: {s.get('objective')} (Duration: {s.get('duration')})\n"
+    except Exception:
+        pass
+
+    project_context += """
+INSTRUCTIONS:
+1. Provide highly specific, film-production-grade answers.
+2. If suggesting screenplay lines, format them in standard centered uppercase screenwriting layout.
+3. Be concise and maintain an engaging, supportive tone.
+"""
+
+    from backend.services.gemini_service import gemini_service
+    response = gemini_service.chat_with_copilot(project_context, history, message)
+    
+    return success_response({"response": response}, "Message processed successfully.")

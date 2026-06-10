@@ -11,6 +11,7 @@ let lastSceneBreakdown = null;
 let currentStoryboardDoc = null; // Stored storyboard document
 let storyboardViewMode = "grid"; // "grid" or "carousel"
 let currentStoryboardSlideIndex = 0; // Active slide for Presenter Mode
+let chatHistory = [];
 
 
 // --- GENERAL HELPER FOR SAFE OBJECT/ARRAY TEXT FORMATTING ---
@@ -184,6 +185,18 @@ function switchSubview(subviewId) {
     if (activeProject) {
         loadViewSpecificData(subviewId);
     }
+
+    // Manage chatbot visibility based on active subview
+    const chatbotContainer = document.getElementById("chatbot-container");
+    if (chatbotContainer) {
+        if (activeProject && subviewId !== "projects") {
+            chatbotContainer.style.display = "block";
+        } else {
+            chatbotContainer.style.display = "none";
+            const chatWindow = document.getElementById("chatbot-window");
+            if (chatWindow) chatWindow.style.display = "none";
+        }
+    }
 }
 
 /**
@@ -198,6 +211,18 @@ function toggleRestrictedSidebarLinks(active) {
             link.classList.add("disabled");
         }
     });
+
+    const chatbotContainer = document.getElementById("chatbot-container");
+    if (chatbotContainer) {
+        if (active) {
+            chatbotContainer.style.display = "block";
+        } else {
+            chatbotContainer.style.display = "none";
+            const chatWindow = document.getElementById("chatbot-window");
+            if (chatWindow) chatWindow.style.display = "none";
+            resetChatbot();
+        }
+    }
 }
 
 // --- FORM SUBMISSIONS ---
@@ -367,8 +392,9 @@ async function loadProjectIntoSession(projectId, redirect = true) {
         activeProjectData = compiled; // Store the compiled data in cache
         localStorage.setItem("cineforge_active_project_id", projectId);
         
-        updateActiveProjectBar(activeProject);
+                updateActiveProjectBar(activeProject);
         toggleRestrictedSidebarLinks(true);
+        resetChatbot();
         
         // Render project state
         renderProjectDashboardSummary(compiled);
@@ -1398,4 +1424,192 @@ function showToast(message, type = "info") {
 
 function scrollToFeatures() {
     document.getElementById("features-section").scrollIntoView({ behavior: "smooth" });
+}
+
+// --- CHATBOT WIDGET CONTROLLERS ---
+
+function resetChatbot() {
+    chatHistory = [];
+    const messagesContainer = document.getElementById("chatbot-messages");
+    if (messagesContainer) {
+        messagesContainer.innerHTML = `
+            <div class="chat-message system">
+                <div class="message-content">
+                    Hello! I am your CineForge pre-production copilot. You can ask me questions about your active project, request script changes, brainstorm character motivations, or ask for budget-saving advice!
+                </div>
+            </div>
+        `;
+    }
+    const badge = document.getElementById("chat-badge");
+    if (badge) {
+        badge.style.display = "none";
+        badge.innerText = "0";
+    }
+}
+
+function toggleChatbot() {
+    const chatWindow = document.getElementById("chatbot-window");
+    if (!chatWindow) return;
+    
+    if (chatWindow.style.display === "none") {
+        chatWindow.style.display = "flex";
+        
+        // Hide badge
+        const badge = document.getElementById("chat-badge");
+        if (badge) badge.style.display = "none";
+        
+        // Scroll to bottom
+        const messagesContainer = document.getElementById("chatbot-messages");
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Focus input
+        const chatInput = document.getElementById("chatbot-input");
+        if (chatInput) chatInput.focus();
+    } else {
+        chatWindow.style.display = "none";
+    }
+}
+
+function clearChat() {
+    if (confirm("Are you sure you want to clear the conversation history?")) {
+        resetChatbot();
+    }
+}
+
+function handleChatKey(event) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        sendChatMessage();
+    }
+}
+
+async function sendChatMessage() {
+    const chatInput = document.getElementById("chatbot-input");
+    const messagesContainer = document.getElementById("chatbot-messages");
+    if (!chatInput || !messagesContainer) return;
+    
+    const text = chatInput.value.trim();
+    if (!text) return;
+    
+    // Clear input
+    chatInput.value = "";
+    
+    if (!activeProject) {
+        showToast("No active project loaded.", "error");
+        return;
+    }
+    
+    // Append user message
+    appendChatMessage("user", text);
+    
+    // Disable inputs during send
+    chatInput.disabled = true;
+    const sendBtn = document.getElementById("chatbot-send-btn");
+    if (sendBtn) sendBtn.disabled = true;
+    
+    // Show loader
+    const loaderId = appendChatLoader();
+    
+    try {
+        const response = await api.sendChatbotMessage(activeProject.project_id, text, chatHistory);
+        
+        removeChatLoader(loaderId);
+        chatInput.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        chatInput.focus();
+        
+        if (response && response.success && response.data && response.data.response) {
+            const reply = response.data.response;
+            appendChatMessage("assistant", reply);
+            
+            // Save to history
+            chatHistory.push({ role: "user", content: text });
+            chatHistory.push({ role: "assistant", content: reply });
+        } else {
+            appendChatMessage("assistant", "I received an unexpected response from the studio. Please try again.");
+        }
+    } catch (err) {
+        removeChatLoader(loaderId);
+        chatInput.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        chatInput.focus();
+        
+        appendChatMessage("assistant", `Error: ${err.message || "Unable to reach CineForge Copilot."}`);
+        showToast("Chat message failed: " + err.message, "error");
+    }
+}
+
+function appendChatMessage(role, text) {
+    const messagesContainer = document.getElementById("chatbot-messages");
+    if (!messagesContainer) return;
+    
+    const messageDiv = document.createElement("div");
+    messageDiv.className = `chat-message ${role}`;
+    
+    const contentDiv = document.createElement("div");
+    contentDiv.className = "message-content";
+    contentDiv.innerHTML = formatChatMessage(text);
+    
+    messageDiv.appendChild(contentDiv);
+    messagesContainer.appendChild(messageDiv);
+    
+    // Scroll to bottom
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function appendChatLoader() {
+    const messagesContainer = document.getElementById("chatbot-messages");
+    if (!messagesContainer) return null;
+    
+    const loaderId = "loader-" + Date.now();
+    const loaderDiv = document.createElement("div");
+    loaderDiv.className = "chat-loader";
+    loaderDiv.id = loaderId;
+    loaderDiv.innerHTML = `
+        <span></span>
+        <span></span>
+        <span></span>
+    `;
+    
+    messagesContainer.appendChild(loaderDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    return loaderId;
+}
+
+function removeChatLoader(loaderId) {
+    if (!loaderId) return;
+    const loaderDiv = document.getElementById(loaderId);
+    if (loaderDiv) {
+        loaderDiv.remove();
+    }
+}
+
+function formatChatMessage(text) {
+    if (!text) return "";
+    
+    // Escape HTML first to prevent XSS
+    let html = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    
+    // Convert triple backticks blocks ```code``` to pre tags
+    html = html.replace(/```([\s\S]*?)```/g, function(match, code) {
+        const trimmedCode = code.trim();
+        return `<pre>${trimmedCode}</pre>`;
+    });
+    
+    // Convert double asterisks **bold** to strong
+    html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    
+    // Convert single asterisks *italic* to em
+    html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
+    
+    // Convert inline code `code` to code tags
+    html = html.replace(/`(.*?)`/g, "<code>$1</code>");
+    
+    return html;
 }
