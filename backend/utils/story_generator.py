@@ -172,30 +172,56 @@ def clean_location_for_prose(loc_str):
             return f"the {s}"
     return s
 
-def generate_mock_story(story_idea, genre, target_audience="General", duration_length="Short Film", characters_list=None):
-    # Extract names from the full story_idea BEFORE trimming to the logline, to avoid throwing away characters in the synopsis
-    extracted_names = extract_characters_from_idea(story_idea)
-
-    # Now trim idea_clean to just the logline text for structural placeholders and backstories
-    idea_clean = (story_idea or "").strip()
-    if "Pitch:" in idea_clean and "Logline:" in idea_clean:
-        match_pitch = re.search(r'Pitch:\s*(.*?)(?:\s*Logline:|$)', idea_clean, re.DOTALL)
-        if match_pitch:
-            idea_clean = match_pitch.group(1).strip()
-    elif "Logline:" in idea_clean and "Synopsis:" in idea_clean:
-        match_log = re.search(r'Logline:\s*(.*?)(?:\s*Synopsis:|$)', idea_clean, re.DOTALL)
-        if match_log:
-            idea_clean = match_log.group(1).strip()
-        else:
-            idea_clean = idea_clean.replace("Logline:", "").replace("Synopsis:", "").replace("Theme:", "").strip()
+def extract_raw_pitch(story_idea):
+    if not story_idea:
+        return "our project"
+    s = story_idea.strip()
+    
+    # 1. Look for Pitch: case-insensitively
+    match_pitch = re.search(r'(?i)\bPitch\s*:\s*(.*?)(?:\r?\n\s*\b(?:Logline|Synopsis|Theme|Characters|Scenes|Scene|Act)\b\s*:|$)', s, re.DOTALL)
+    if match_pitch:
+        return match_pitch.group(1).strip()
+        
+    # 2. Look for Logline: case-insensitively
+    match_log = re.search(r'(?i)\bLogline\s*:\s*(.*?)(?:\r?\n\s*\b(?:Synopsis|Theme|Characters|Scenes|Scene|Act)\b\s*:|$)', s, re.DOTALL)
+    if match_log:
+        log_text = match_log.group(1).strip()
+        # If the logline has "driven by the dream of ...", try to extract just the dream
+        dream_match = re.search(r'(?i)Driven by the dream of\s+(.*?)(?:,\s+[A-Za-z0-9\s]+\s+and\s+[A-Za-z0-9\s]+\s+(?:navigate|face|go|work|cooperate|explore|strive|fight|embark|run)|,\s+[^,]+?\s+navigate|,\s+[^,]+?\s+face|$)', log_text, re.DOTALL)
+        if dream_match:
+            return dream_match.group(1).strip()
+        return log_text
+        
+    # 3. Handle multi-line blocks with headers
+    lines = [line.strip() for line in s.split('\n') if line.strip()]
+    for line in lines:
+        if not any(line.lower().startswith(h) for h in ["pitch:", "logline:", "synopsis:", "theme:", "characters:", "scenes:", "scene:", "act:"]):
+            return line
             
+    # 4. Remove labels and clean it up as fallback
+    idea_clean = s
     labels = ["pitch", "logline", "synopsis", "description", "theme", "paragraph1", "paragraph2", "paragraph3", "paragraph", 
               "genre analysis", "audience insights", "tagline", "key tropes", "unique twists", "genre fit", 
               "target audience", "marketing hooks", "competitive landscape", "act 1", "act 2", "act 3"]
     for label in labels:
         idea_clean = re.sub(rf'\b{label}\b\s*:?', '', idea_clean, flags=re.IGNORECASE)
     idea_clean = idea_clean.strip()
+    
+    # Strip phrases like "a story about"
+    strip_phrases = ["a story about", "a film about", "write a story about", "write a screenplay about", "a screenplay about", "story about", "film about", "about"]
+    for phrase in strip_phrases:
+        if idea_clean.lower().startswith(phrase):
+            idea_clean = idea_clean[len(phrase):].strip()
+            break
+            
+    return idea_clean
 
+def generate_mock_story(story_idea, genre, target_audience="General", duration_length="Short Film", characters_list=None):
+    # Extract names from the full story_idea BEFORE trimming to the logline, to avoid throwing away characters in the synopsis
+    extracted_names = extract_characters_from_idea(story_idea)
+
+    # Now trim idea_clean to just the logline text for structural placeholders and backstories
+    idea_clean = extract_raw_pitch(story_idea)
     idea_lower = idea_clean.lower()
     genre_lower = (genre or "").lower()
 
@@ -922,31 +948,7 @@ def generate_mock_scene_script(story_idea, genre, scene_number, location, scene_
     c3 = speaking_chars[2]
 
     # Extract dynamic story phrase from story_idea
-    idea_clean = (story_idea or "").strip()
-    labels = ["pitch", "logline", "synopsis", "description", "theme", "paragraph1", "paragraph2", "paragraph3", "paragraph", 
-              "genre analysis", "audience insights", "tagline", "key tropes", "unique twists", "genre fit", 
-              "target audience", "marketing hooks", "competitive landscape", "act 1", "act 2", "act 3"]
-    
-    char_search_text = idea_clean
-    for label in labels:
-        char_search_text = re.sub(rf'\b{label}\b\s*:?', '', char_search_text, flags=re.IGNORECASE)
-    
-    char_search_text = char_search_text.strip()
-    
-    idea_trimmed = char_search_text
-    if "Pitch:" in idea_clean and "Logline:" in idea_clean:
-        match_pitch = re.search(r'Pitch:\s*(.*?)(?:\s*Logline:|$)', idea_clean, re.DOTALL | re.IGNORECASE)
-        if match_pitch:
-            idea_trimmed = match_pitch.group(1).strip()
-            
-    strip_phrases = ["a story about", "a film about", "write a story about", "write a screenplay about", "a screenplay about", "story about", "film about", "about"]
-    for phrase in strip_phrases:
-        if idea_trimmed.lower().startswith(phrase):
-            idea_trimmed = idea_trimmed[len(phrase):].strip()
-            break
-    if idea_trimmed.endswith("."):
-        idea_trimmed = idea_trimmed[:-1].strip()
-        
+    idea_trimmed = extract_raw_pitch(story_idea)
     story_summary_lc = idea_trimmed[0].lower() + idea_trimmed[1:] if idea_trimmed else "our project"
 
     s_num_str = str(scene_number)
