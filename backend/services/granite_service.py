@@ -83,9 +83,8 @@ class GraniteService:
                     print(f">>> GraniteService Groq API call succeeded using model {model}.")
                     return content
                 elif response.status_code == 429:
-                    print(f">>> GraniteService: Groq API returned 429 rate limit error for model {model}. Activating 30s cooldown.")
-                    GROQ_COOLDOWN_UNTIL = time.time() + 30.0
-                    break
+                    print(f">>> GraniteService: Groq API returned 429 rate limit error for model {model}. Trying fallback model...")
+                    continue
                 else:
                     print(f">>> GraniteService Groq API returned error {response.status_code} for model {model}: {response.text}")
                     # If unauthorized or forbidden, stop trying other models
@@ -94,6 +93,9 @@ class GraniteService:
             except Exception as e:
                 print(f">>> GraniteService Exception calling Groq API with model {model}: {e}")
                 
+        # If all models failed, set cooldown
+        print(">>> GraniteService: All Groq models failed. Activating 30s cooldown.")
+        GROQ_COOLDOWN_UNTIL = time.time() + 30.0
         return None
 
     def _generate(self, prompt, max_tokens=1024):

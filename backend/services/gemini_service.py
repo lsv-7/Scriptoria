@@ -42,7 +42,7 @@ class GeminiService:
         # Initialize Groq models list
         self.groq_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
 
-    def _generate_groq(self, prompt, max_tokens=1024):
+    def _generate_groq(self, prompt, max_tokens=1024, system_message=None):
         """Internal helper to call Groq API with fallback models and rate-limit cooldown."""
         global GROQ_COOLDOWN_UNTIL
         import time
@@ -61,12 +61,14 @@ class GeminiService:
             "Content-Type": "application/json"
         }
         
+        sys_msg = system_message if system_message is not None else "You output JSON strictly as requested. Output only the JSON. No explanations, no markdown formatting blocks."
+        
         for model in self.groq_models:
             print(f">>> Trying Groq API with model: {model}...")
             payload = {
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": "You output JSON strictly as requested. Output only the JSON. No explanations, no markdown formatting blocks."},
+                    {"role": "system", "content": sys_msg},
                     {"role": "user", "content": prompt}
                 ],
                 "temperature": 0.0,
@@ -78,9 +80,8 @@ class GeminiService:
                     print(f">>> Groq API call succeeded using model {model}.")
                     return response.json()["choices"][0]["message"]["content"]
                 elif response.status_code == 429:
-                    print(f">>> Groq API returned 429 rate limit error for model {model}. Activating 30s cooldown.")
-                    GROQ_COOLDOWN_UNTIL = time.time() + 30.0
-                    break
+                    print(f">>> Groq API returned 429 rate limit error for model {model}. Trying fallback model...")
+                    continue
                 else:
                     print(f">>> Groq API returned error {response.status_code} for model {model}: {response.text}")
                     # If unauthorized or forbidden, stop trying other models
@@ -89,6 +90,9 @@ class GeminiService:
             except Exception as e:
                 print(f">>> Exception calling Groq API with model {model}: {e}")
                 
+        # If all models failed, set cooldown
+        print(">>> All Groq models failed. Activating 30s cooldown.")
+        GROQ_COOLDOWN_UNTIL = time.time() + 30.0
         return None
 
     def _generate(self, prompt):
@@ -329,8 +333,10 @@ class GeminiService:
         prompt += f"User: {user_message}\n"
         prompt += "Copilot: "
         
+        system_message = "You are CineForge Copilot, a master screenwriter and creative film producer. You assist the user with brainstorming and pre-production. Provide clean, engaging prose. Keep responses supportive and concise."
+        
         # 1. Try Groq
-        response_text = self._generate_groq(prompt, max_tokens=1024)
+        response_text = self._generate_groq(prompt, max_tokens=1024, system_message=system_message)
         
         # 2. Try Gemini
         if not response_text:
