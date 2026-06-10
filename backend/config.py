@@ -20,11 +20,14 @@ class Config:
     # Can point to a local JSON file for the service account
     FIREBASE_CREDENTIALS_PATH = os.environ.get(
         "FIREBASE_CREDENTIALS_PATH", 
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "firebase_creds.json")
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "serviceAccounts.json")
     )
     
     # Gemini API Configuration
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+    # Groq API Configuration
+    GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
     # IBM Watsonx AI (Granite model) Configuration
     WATSONX_API_KEY = os.environ.get("WATSONX_API_KEY", "")

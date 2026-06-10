@@ -1,6 +1,8 @@
 // API Integration Client for CineForge AI Backend
 
-const API_BASE_URL = "http://localhost:5001";
+const API_BASE_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? (window.location.port === "5001" ? window.location.origin : "http://localhost:5001")
+    : (window.location.protocol === "file:" ? "http://localhost:5001" : window.location.origin);
 
 class CineForgeAPI {
     constructor() {
@@ -121,6 +123,14 @@ class CineForgeAPI {
 
     async generateProductionPlan(projectId) {
         return this._request("/generate-production-plan", "POST", { project_id: projectId });
+    }
+
+    async generateBudgetPlan(projectId) {
+        return this._request("/generate-budget-plan", "POST", { project_id: projectId });
+    }
+
+    async generateAllPreproduction(projectId) {
+        return this._request("/project/" + projectId + "/generate-all", "POST");
     }
 
     // --- Document Exports ---

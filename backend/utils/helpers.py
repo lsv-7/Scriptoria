@@ -69,3 +69,31 @@ def get_auth_token(request):
         return parts[1]
         
     return None
+
+def clean_prose_text(text):
+    if not isinstance(text, str):
+        return text
+    
+    # Import inline to avoid circular imports
+    from backend.utils.story_generator import clean_location_for_prose
+    
+    # Matches patterns like INT. CLASSROOM - DAY or EXT. STREETS (case-insensitive)
+    pattern = r'\b(?:INT|EXT|INT/EXT|EXT/INT|INT\./EXT\.|EXT\./INT\.)\.?\s+([^-\t\n\r]+)(?:\s*-\s*(?:DAY|NIGHT|DUSK|DAWN|LATER|CONTINUOUS|SAME TIME))?\b'
+    
+    def replacer(match):
+        raw_match = match.group(0)
+        return clean_location_for_prose(raw_match)
+        
+    return re.sub(pattern, replacer, text, flags=re.IGNORECASE)
+
+def clean_prose_data(data, skip_keys=None):
+    if skip_keys is None:
+        skip_keys = {"location", "screenplay_text"}
+        
+    if isinstance(data, dict):
+        return {k: (v if k in skip_keys else clean_prose_data(v, skip_keys)) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [clean_prose_data(item, skip_keys) for item in data]
+    elif isinstance(data, str):
+        return clean_prose_text(data)
+    return data

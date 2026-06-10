@@ -6,7 +6,7 @@ def validate_project_input(data):
     if not data:
         return False, "Request payload is empty"
         
-    required_fields = ["project_name", "genre", "target_audience", "story_idea"]
+    required_fields = ["project_name", "genre", "target_audience", "story_idea", "duration_length"]
     for field in required_fields:
         if field not in data or not str(data[field]).strip():
             return False, f"Field '{field}' is required and cannot be empty"
@@ -20,6 +20,9 @@ def validate_project_input(data):
         
     if len(str(data["target_audience"])) > 100:
         return False, "Target audience must be under 100 characters"
+        
+    if len(str(data["duration_length"])) > 100:
+        return False, "Duration/Length must be under 100 characters"
         
     if len(str(data["story_idea"])) < 10:
         return False, "Story idea should be at least 10 characters long"

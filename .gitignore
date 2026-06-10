@@ -1,0 +1,22 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+backend/.env
+
+# Local Databases and credentials
+backend/serviceAccounts.json
+backend/firebase_creds.json
+backend/local_firestore_db.json
+local_firestore_db.json
+
+# IDE settings
+.vscode/
+.idea/
+
+# Developer scratch files and logs
+scratch/
+*.log

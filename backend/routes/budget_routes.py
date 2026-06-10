@@ -5,12 +5,12 @@ from backend.services.firebase_service import firebase_service
 from backend.services.granite_service import granite_service
 from backend.utils.helpers import success_response, error_response
 
-sound_bp = Blueprint("sound", __name__)
+budget_bp = Blueprint("budget", __name__)
 
-@sound_bp.route("/generate-sound-design", methods=["POST"])
+@budget_bp.route("/generate-budget-plan", methods=["POST"])
 @login_required
-def generate_sound_design():
-    """Generates film sound design blueprint using IBM Granite AI."""
+def generate_budget_plan():
+    """Generates pre-production, production, and post-production budget estimates using IBM Granite AI."""
     data = request.get_json() or {}
     project_id = data.get("project_id")
     
@@ -65,14 +65,14 @@ def generate_sound_design():
             
     scenes_list = scene_doc.get("scenes", []) if scene_doc else []
     
-    # Generate sound design
-    sound_data = granite_service.generate_sound_design(story_idea, genre, characters_list, scenes_list)
-    if not sound_data or "error" in sound_data:
-        return error_response("Failed to generate sound design from IBM Granite AI.", 500, details=sound_data)
+    # Generate budget plan
+    budget_data = granite_service.generate_budget_plan(story_idea, genre, characters_list, scenes_list)
+    if not budget_data or "error" in budget_data:
+        return error_response("Failed to generate budget plan from IBM Granite AI.", 500, details=budget_data)
         
-    sound_data["project_id"] = project_id
-    sound_data["created_at"] = datetime.datetime.utcnow().isoformat()
+    budget_data["project_id"] = project_id
+    budget_data["created_at"] = datetime.datetime.utcnow().isoformat()
     
-    firebase_service.set_document("sound_designs", project_id, sound_data)
+    firebase_service.set_document("budget_plans", project_id, budget_data)
     
-    return success_response(sound_data, "Sound design blueprint generated and saved successfully.")
+    return success_response(budget_data, "Budget plan generated and saved successfully.")

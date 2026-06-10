@@ -25,10 +25,48 @@ def generate_production_plan():
         return error_response("Access denied.", 403)
         
     story_idea = project.get("story_idea")
+    
+    # Check if we have refined story insights (story analysis) to represent its content
+    story_analysis = firebase_service.get_document("story_analysis", project_id)
+    if story_analysis:
+        def format_val_str(val):
+            if not val:
+                return ""
+            if isinstance(val, dict):
+                return " ".join([f"{k.replace('_', ' ').title()}: {format_val_str(v)}" for k, v in val.items()])
+            if isinstance(val, list):
+                return " ".join([format_val_str(item) for item in val])
+            return str(val)
+        story_idea = f"Pitch: {project.get('story_idea')}\nLogline: {format_val_str(story_analysis.get('logline'))}\nSynopsis: {format_val_str(story_analysis.get('synopsis'))}\nTheme: {format_val_str(story_analysis.get('theme'))}"
+
     genre = project.get("genre")
     
+    # Retrieve or auto-generate character profiles to maintain synchronization
+    from backend.services.gemini_service import gemini_service
+    characters_doc = firebase_service.get_document("characters", project_id)
+    if not characters_doc or "characters" not in characters_doc or not characters_doc["characters"]:
+        characters_doc = gemini_service.generate_characters(story_idea, genre)
+        if characters_doc and "characters" in characters_doc:
+            characters_doc["project_id"] = project_id
+            characters_doc["created_at"] = datetime.datetime.utcnow().isoformat()
+            firebase_service.set_document("characters", project_id, characters_doc)
+            
+    characters_list = characters_doc.get("characters", []) if characters_doc else []
+
+    # Retrieve or auto-generate scene breakdown to maintain synchronization
+    scene_doc = firebase_service.get_document("scene_breakdowns", project_id)
+    if not scene_doc or "scenes" not in scene_doc or not scene_doc["scenes"]:
+        duration_length = project.get("duration_length", "Short Film")
+        scene_doc = gemini_service.generate_scenes(story_idea, genre, duration_length, characters_list)
+        if scene_doc and "scenes" in scene_doc:
+            scene_doc["project_id"] = project_id
+            scene_doc["created_at"] = datetime.datetime.utcnow().isoformat()
+            firebase_service.set_document("scene_breakdowns", project_id, scene_doc)
+            
+    scenes_list = scene_doc.get("scenes", []) if scene_doc else []
+    
     # Generate production plan
-    production_data = granite_service.generate_production_plan(story_idea, genre)
+    production_data = granite_service.generate_production_plan(story_idea, genre, characters_list, scenes_list)
     if not production_data or "error" in production_data:
         return error_response("Failed to generate production plan from IBM Granite AI.", 500, details=production_data)
         

@@ -1,6 +1,7 @@
 import os
 import io
 import datetime
+import json
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import (
@@ -11,6 +12,18 @@ from reportlab.pdfgen import canvas
 from docx import Document
 from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+def safe_str(val, default="N/A"):
+    if val is None:
+        return default
+    if isinstance(val, dict):
+        for k in ["description", "details", "text", "info"]:
+            if k in val and isinstance(val[k], str):
+                return val[k]
+        return json.dumps(val, indent=2)
+    if isinstance(val, list):
+        return ", ".join([str(item) for item in val])
+    return str(val)
 
 # --- CUSTOM REPORTLAB CANVAS FOR DYNAMIC PAGE NUMBERING ---
 class NumberedCanvas(canvas.Canvas):
@@ -37,7 +50,7 @@ class NumberedCanvas(canvas.Canvas):
         if self._pageNumber > 1:
             # Header
             self.setFont("Helvetica-Bold", 8)
-            self.setFillColor(colors.HexColor("#7c4dff")) # Purple accent
+            self.setFillColor(colors.HexColor("#D4AF37")) # Gold accent
             self.drawString(54, 755, "CINEFORGE AI")
             self.setFont("Helvetica", 8)
             self.setFillColor(colors.HexColor("#4a4a5a"))
@@ -81,9 +94,9 @@ class ExportService:
         styles = getSampleStyleSheet()
         
         # Custom color definitions (matching landing page styling)
-        primary_color = colors.HexColor("#0d0d11") # Black/Deep grey
-        accent_color = colors.HexColor("#7c4dff")  # Purple
-        secondary_color = colors.HexColor("#e6a100") # Gold
+        primary_color = colors.HexColor("#0A0A0A") # Obsidian Black
+        accent_color = colors.HexColor("#D4AF37")  # Gold
+        secondary_color = colors.HexColor("#F5C542") # Bright Gold
         body_color = colors.HexColor("#2e2e3a")
         
         # Custom typography styles
@@ -209,23 +222,23 @@ class ExportService:
         # --- 1. STORY ANALYSIS ---
         analysis = data.get("story_analysis", {})
         story.append(Paragraph("1. STORY ANALYSIS", styles['SectionHeading']))
-        story.append(Paragraph(f"<b>Logline:</b> {analysis.get('logline', 'N/A')}", styles['CustomBody']))
-        story.append(Paragraph(f"<b>Tagline:</b> <i>\"{analysis.get('tagline', 'N/A')}\"</i>", styles['CustomBody']))
+        story.append(Paragraph(f"<b>Logline:</b> {safe_str(analysis.get('logline', 'N/A'))}", styles['CustomBody']))
+        story.append(Paragraph(f"<b>Tagline:</b> <i>\"{safe_str(analysis.get('tagline', 'N/A'))}\"</i>", styles['CustomBody']))
         story.append(Spacer(1, 10))
         
         story.append(Paragraph("Synopsis", styles['SubsectionHeading']))
-        synopsis = analysis.get('synopsis', 'N/A')
+        synopsis = safe_str(analysis.get('synopsis', 'N/A'))
         for para in synopsis.split('\n\n'):
             story.append(Paragraph(para, styles['CustomBody']))
             
         story.append(Paragraph("Genre Analysis", styles['SubsectionHeading']))
-        story.append(Paragraph(analysis.get('genre_analysis', 'N/A'), styles['CustomBody']))
+        story.append(Paragraph(safe_str(analysis.get('genre_analysis', 'N/A')), styles['CustomBody']))
         
         story.append(Paragraph("Theme & Core Message", styles['SubsectionHeading']))
-        story.append(Paragraph(analysis.get('theme', 'N/A'), styles['CustomBody']))
+        story.append(Paragraph(safe_str(analysis.get('theme', 'N/A')), styles['CustomBody']))
         
         story.append(Paragraph("Audience Insights", styles['SubsectionHeading']))
-        story.append(Paragraph(analysis.get('audience_insights', 'N/A'), styles['CustomBody']))
+        story.append(Paragraph(safe_str(analysis.get('audience_insights', 'N/A')), styles['CustomBody']))
         story.append(PageBreak())
 
         # --- 2. NARRATIVE STRUCTURE ---
@@ -234,12 +247,12 @@ class ExportService:
         for act_key in ["act_1", "act_2", "act_3"]:
             act = struct.get(act_key, {})
             if act:
-                story.append(Paragraph(act.get("title", act_key.replace("_", " ").title()), styles['SubsectionHeading']))
-                story.append(Paragraph(f"<b>Description:</b> {act.get('description', 'N/A')}", styles['CustomBody']))
-                story.append(Paragraph(f"<b>Conflict:</b> {act.get('conflict', 'N/A')}", styles['CustomBody']))
-                story.append(Paragraph(f"<b>Rising Action / Progression:</b> {act.get('rising_action', 'N/A')}", styles['CustomBody']))
+                story.append(Paragraph(safe_str(act.get("title", act_key.replace("_", " ").title())), styles['SubsectionHeading']))
+                story.append(Paragraph(f"<b>Description:</b> {safe_str(act.get('description', 'N/A'))}", styles['CustomBody']))
+                story.append(Paragraph(f"<b>Conflict:</b> {safe_str(act.get('conflict', 'N/A'))}", styles['CustomBody']))
+                story.append(Paragraph(f"<b>Rising Action / Progression:</b> {safe_str(act.get('rising_action', 'N/A'))}", styles['CustomBody']))
                 if "resolution" in act:
-                    story.append(Paragraph(f"<b>Resolution:</b> {act.get('resolution', 'N/A')}", styles['CustomBody']))
+                    story.append(Paragraph(f"<b>Resolution:</b> {safe_str(act.get('resolution', 'N/A'))}", styles['CustomBody']))
                 story.append(Spacer(1, 10))
         story.append(PageBreak())
 
@@ -247,12 +260,12 @@ class ExportService:
         chars_data = data.get("characters", {}).get("characters", [])
         story.append(Paragraph("3. CHARACTER PROFILES", styles['SectionHeading']))
         for char in chars_data:
-            story.append(Paragraph(f"<b>{char.get('name', 'Unnamed')}</b> (Age: {char.get('age', 'N/A')})", styles['SubsectionHeading']))
-            story.append(Paragraph(f"<b>Backstory:</b> {char.get('backstory', 'N/A')}", styles['CustomBody']))
-            story.append(Paragraph(f"<b>Personality:</b> {char.get('personality', 'N/A')}", styles['CustomBody']))
-            story.append(Paragraph(f"<b>Core Goals:</b> {char.get('goals', 'N/A')}", styles['CustomBody']))
-            story.append(Paragraph(f"<b>Strengths:</b> {char.get('strengths', 'N/A')} | <b>Weaknesses:</b> {char.get('weaknesses', 'N/A')}", styles['CustomBody']))
-            story.append(Paragraph(f"<b>Character Arc:</b> {char.get('arc', 'N/A')}", styles['CustomBody']))
+            story.append(Paragraph(f"<b>{safe_str(char.get('name', 'Unnamed'))}</b> (Age: {safe_str(char.get('age', 'N/A'))})", styles['SubsectionHeading']))
+            story.append(Paragraph(f"<b>Backstory:</b> {safe_str(char.get('backstory', 'N/A'))}", styles['CustomBody']))
+            story.append(Paragraph(f"<b>Personality:</b> {safe_str(char.get('personality', 'N/A'))}", styles['CustomBody']))
+            story.append(Paragraph(f"<b>Core Goals:</b> {safe_str(char.get('goals', 'N/A'))}", styles['CustomBody']))
+            story.append(Paragraph(f"<b>Strengths:</b> {safe_str(char.get('strengths', 'N/A'))} | <b>Weaknesses:</b> {safe_str(char.get('weaknesses', 'N/A'))}", styles['CustomBody']))
+            story.append(Paragraph(f"<b>Character Arc:</b> {safe_str(char.get('arc', 'N/A'))}", styles['CustomBody']))
             story.append(Spacer(1, 12))
         story.append(PageBreak())
 
@@ -303,35 +316,64 @@ class ExportService:
         sound = data.get("sound_design", {})
         story.append(Paragraph("6. SOUND DESIGN PLAN", styles['SectionHeading']))
         story.append(Paragraph("Background Music / Soundtrack", styles['SubsectionHeading']))
-        story.append(Paragraph(sound.get("background_music", "N/A"), styles['CustomBody']))
+        story.append(Paragraph(safe_str(sound.get("background_music")), styles['CustomBody']))
         story.append(Paragraph("Ambience & Atmosphere", styles['SubsectionHeading']))
-        story.append(Paragraph(sound.get("ambience", "N/A"), styles['CustomBody']))
+        story.append(Paragraph(safe_str(sound.get("ambience")), styles['CustomBody']))
         story.append(Paragraph("Foley & Sound Effects", styles['SubsectionHeading']))
-        story.append(Paragraph(sound.get("foley_effects", "N/A"), styles['CustomBody']))
+        story.append(Paragraph(safe_str(sound.get("foley_effects")), styles['CustomBody']))
         story.append(Paragraph("Dialogue Treatment", styles['SubsectionHeading']))
-        story.append(Paragraph(sound.get("dialogue_treatment", "N/A"), styles['CustomBody']))
+        story.append(Paragraph(safe_str(sound.get("dialogue_treatment")), styles['CustomBody']))
         story.append(Paragraph("Sound Cue Production Notes", styles['SubsectionHeading']))
-        story.append(Paragraph(sound.get("scene_sound_notes", "N/A"), styles['CustomBody']))
+        story.append(Paragraph(safe_str(sound.get("scene_sound_notes")), styles['CustomBody']))
         story.append(PageBreak())
 
         # --- 7. PRODUCTION PLANNING ---
         prod = data.get("production_plan", {})
         story.append(Paragraph("7. PRODUCTION PLANNING SHEET", styles['SectionHeading']))
         story.append(Paragraph("Shooting Locations", styles['SubsectionHeading']))
-        story.append(Paragraph(prod.get("shooting_locations", "N/A"), styles['CustomBody']))
+        story.append(Paragraph(safe_str(prod.get("shooting_locations")), styles['CustomBody']))
         story.append(Paragraph("Required Props", styles['SubsectionHeading']))
-        story.append(Paragraph(prod.get("required_props", "N/A"), styles['CustomBody']))
+        story.append(Paragraph(safe_str(prod.get("required_props")), styles['CustomBody']))
         story.append(Paragraph("Production Equipment Suggested", styles['SubsectionHeading']))
-        story.append(Paragraph(prod.get("equipment", "N/A"), styles['CustomBody']))
+        story.append(Paragraph(safe_str(prod.get("equipment")), styles['CustomBody']))
         story.append(Paragraph("Crew Suggestions", styles['SubsectionHeading']))
-        story.append(Paragraph(prod.get("crew_suggestions", "N/A"), styles['CustomBody']))
+        story.append(Paragraph(safe_str(prod.get("crew_suggestions")), styles['CustomBody']))
         story.append(Paragraph("Estimated Shoot Days", styles['SubsectionHeading']))
-        story.append(Paragraph(prod.get("estimated_shoot_days", "N/A"), styles['CustomBody']))
+        story.append(Paragraph(safe_str(prod.get("estimated_shoot_days")), styles['CustomBody']))
         story.append(PageBreak())
 
-        # --- 8. SCREENPLAY SCRIPT ---
-        screenplay = data.get("screenplay", {}).get("screenplay_text", "")
-        story.append(Paragraph("8. SCREENPLAY SCRIPT EXCERPT", styles['SectionHeading']))
+        # --- 8. BUDGET PLANNING ---
+        budget = data.get("budget_plan", {})
+        story.append(Paragraph("8. BUDGET PLANNING", styles['SectionHeading']))
+        if budget:
+            pre = budget.get("pre_production", {}) or {}
+            prod_b = budget.get("production", {}) or {}
+            post = budget.get("post_production", {}) or {}
+            
+            story.append(Paragraph("Pre-Production Budget", styles['SubsectionHeading']))
+            story.append(Paragraph(f"<b>Estimated Cost:</b> {safe_str(pre.get('cost'))}", styles['CustomBody']))
+            story.append(Paragraph(f"<b>Details:</b> {safe_str(pre.get('details'))}", styles['CustomBody']))
+            story.append(Spacer(1, 6))
+            
+            story.append(Paragraph("Production Budget", styles['SubsectionHeading']))
+            story.append(Paragraph(f"<b>Estimated Cost:</b> {safe_str(prod_b.get('cost'))}", styles['CustomBody']))
+            story.append(Paragraph(f"<b>Details:</b> {safe_str(prod_b.get('details'))}", styles['CustomBody']))
+            story.append(Spacer(1, 6))
+            
+            story.append(Paragraph("Post-Production Budget", styles['SubsectionHeading']))
+            story.append(Paragraph(f"<b>Estimated Cost:</b> {safe_str(post.get('cost'))}", styles['CustomBody']))
+            story.append(Paragraph(f"<b>Details:</b> {safe_str(post.get('details'))}", styles['CustomBody']))
+            story.append(Spacer(1, 6))
+            
+            story.append(Paragraph(f"<b>Estimated Total Budget:</b> {safe_str(budget.get('total_budget'))}", styles['SubsectionHeading']))
+            story.append(Paragraph(f"<b>Cost Saving Tips:</b> {safe_str(budget.get('cost_saving_tips'))}", styles['CustomBody']))
+        else:
+            story.append(Paragraph("No budget details generated.", styles['CustomBody']))
+        story.append(PageBreak())
+
+        # --- 9. SCREENPLAY SCRIPT EXCERPT ---
+        screenplay = safe_str(data.get("screenplay", {}).get("screenplay_text", ""))
+        story.append(Paragraph("9. SCREENPLAY SCRIPT EXCERPT", styles['SectionHeading']))
         if screenplay:
             lines = screenplay.split('\n')
             for line in lines:
@@ -400,16 +442,16 @@ class ExportService:
         # 1. Story Analysis
         doc.add_heading("1. Story Analysis", level=1)
         analysis = data.get("story_analysis", {})
-        doc.add_paragraph(f"Logline: {analysis.get('logline', 'N/A')}")
-        doc.add_paragraph(f"Tagline: {analysis.get('tagline', 'N/A')}")
+        doc.add_paragraph(f"Logline: {safe_str(analysis.get('logline', 'N/A'))}")
+        doc.add_paragraph(f"Tagline: {safe_str(analysis.get('tagline', 'N/A'))}")
         doc.add_heading("Synopsis", level=2)
-        doc.add_paragraph(analysis.get('synopsis', 'N/A'))
+        doc.add_paragraph(safe_str(analysis.get('synopsis', 'N/A')))
         doc.add_heading("Genre Analysis", level=2)
-        doc.add_paragraph(analysis.get('genre_analysis', 'N/A'))
+        doc.add_paragraph(safe_str(analysis.get('genre_analysis', 'N/A')))
         doc.add_heading("Theme", level=2)
-        doc.add_paragraph(analysis.get('theme', 'N/A'))
+        doc.add_paragraph(safe_str(analysis.get('theme', 'N/A')))
         doc.add_heading("Audience Insights", level=2)
-        doc.add_paragraph(analysis.get('audience_insights', 'N/A'))
+        doc.add_paragraph(safe_str(analysis.get('audience_insights', 'N/A')))
         
         # 2. Narrative Structure
         doc.add_heading("2. Narrative Structure", level=1)
@@ -417,24 +459,25 @@ class ExportService:
         for act_key in ["act_1", "act_2", "act_3"]:
             act = struct.get(act_key, {})
             if act:
-                doc.add_heading(act.get("title", act_key.replace("_", " ").title()), level=2)
-                doc.add_paragraph(f"Description: {act.get('description', 'N/A')}")
-                doc.add_paragraph(f"Conflict: {act.get('conflict', 'N/A')}")
-                doc.add_paragraph(f"Rising Action: {act.get('rising_action', 'N/A')}")
+                doc.add_heading(safe_str(act.get("title", act_key.replace("_", " ").title())), level=2)
+                doc.add_paragraph(f"Description: {safe_str(act.get('description', 'N/A'))}")
+                doc.add_paragraph(f"Conflict: {safe_str(act.get('conflict', 'N/A'))}")
+                doc.add_paragraph(f"Rising Action: {safe_str(act.get('rising_action', 'N/A'))}")
                 if "resolution" in act:
-                    doc.add_paragraph(f"Resolution: {act.get('resolution', 'N/A')}")
+                    doc.add_paragraph(f"Resolution: {safe_str(act.get('resolution', 'N/A'))}")
 
         # 3. Characters
         doc.add_heading("3. Character Profiles", level=1)
         chars = data.get("characters", {}).get("characters", [])
         for char in chars:
-            doc.add_heading(char.get("name", "Unnamed"), level=2)
-            doc.add_paragraph(f"Age: {char.get('age', 'N/A')}")
-            doc.add_paragraph(f"Backstory: {char.get('backstory', 'N/A')}")
-            doc.add_paragraph(f"Personality: {char.get('personality', 'N/A')}")
-            doc.add_paragraph(f"Goals: {char.get('goals', 'N/A')}")
-            doc.add_paragraph(f"Strengths: {char.get('strengths', 'N/A')} | Weaknesses: {char.get('weaknesses', 'N/A')}")
-            doc.add_paragraph(f"Arc: {char.get('arc', 'N/A')}")
+            doc.add_heading(safe_str(char.get("name", "Unnamed")), level=2)
+            doc.add_paragraph(f"Age: {safe_str(char.get('age', 'N/A'))}")
+            doc.add_paragraph(f"Backstory: {safe_str(char.get('backstory', 'N/A'))}")
+            doc.add_paragraph(f"Personality: {safe_str(char.get('personality', 'N/A'))}")
+            doc.add_paragraph(f"Goals: {safe_str(char.get('goals', 'N/A'))}")
+            doc.add_paragraph(f"Strengths: {safe_str(char.get('strengths', 'N/A'))}")
+            doc.add_paragraph(f"Weaknesses: {safe_str(char.get('weaknesses', 'N/A'))}")
+            doc.add_paragraph(f"Character Arc: {safe_str(char.get('arc', 'N/A'))}")
 
         # 4. Scene Breakdown
         doc.add_heading("4. Scene Breakdown", level=1)
@@ -486,9 +529,34 @@ class ExportService:
         doc.add_paragraph(f"Crew: {prod.get('crew_suggestions', 'N/A')}")
         doc.add_paragraph(f"Est Shoot Days: {prod.get('estimated_shoot_days', 'N/A')}")
 
-        # 8. Screenplay
-        doc.add_heading("8. Screenplay", level=1)
-        screenplay = data.get("screenplay", {}).get("screenplay_text", "")
+        # 8. Budget Planning
+        doc.add_heading("8. Budget Planning", level=1)
+        budget = data.get("budget_plan", {})
+        if budget:
+            pre = budget.get("pre_production", {}) or {}
+            prod_b = budget.get("production", {}) or {}
+            post = budget.get("post_production", {}) or {}
+            
+            doc.add_heading("Pre-Production", level=2)
+            doc.add_paragraph(f"Cost: {pre.get('cost', 'N/A')}")
+            doc.add_paragraph(pre.get('details', 'N/A'))
+            
+            doc.add_heading("Production", level=2)
+            doc.add_paragraph(f"Cost: {prod_b.get('cost', 'N/A')}")
+            doc.add_paragraph(prod_b.get('details', 'N/A'))
+            
+            doc.add_heading("Post-Production", level=2)
+            doc.add_paragraph(f"Cost: {post.get('cost', 'N/A')}")
+            doc.add_paragraph(post.get('details', 'N/A'))
+            
+            doc.add_paragraph(f"Total Budget: {budget.get('total_budget', 'N/A')}")
+            doc.add_paragraph(f"Cost Saving Tips: {budget.get('cost_saving_tips', 'N/A')}")
+        else:
+            doc.add_paragraph("No budget details generated.")
+
+        # 9. Screenplay
+        doc.add_heading("9. Screenplay", level=1)
+        screenplay = safe_str(data.get("screenplay", {}).get("screenplay_text", ""))
         if screenplay:
             lines = screenplay.split("\n")
             for line in lines:
@@ -535,12 +603,12 @@ class ExportService:
         # Story Analysis
         out.append("1. STORY ANALYSIS\n" + "-"*17)
         analysis = data.get("story_analysis", {})
-        out.append(f"Logline: {analysis.get('logline', 'N/A')}")
-        out.append(f"Tagline: {analysis.get('tagline', 'N/A')}")
-        out.append(f"\nSynopsis:\n{analysis.get('synopsis', 'N/A')}")
-        out.append(f"\nGenre Analysis:\n{analysis.get('genre_analysis', 'N/A')}")
-        out.append(f"\nTheme:\n{analysis.get('theme', 'N/A')}")
-        out.append(f"\nAudience Insights:\n{analysis.get('audience_insights', 'N/A')}\n\n")
+        out.append(f"Logline: {safe_str(analysis.get('logline', 'N/A'))}")
+        out.append(f"Tagline: {safe_str(analysis.get('tagline', 'N/A'))}")
+        out.append(f"\nSynopsis:\n{safe_str(analysis.get('synopsis', 'N/A'))}")
+        out.append(f"\nGenre Analysis:\n{safe_str(analysis.get('genre_analysis', 'N/A'))}")
+        out.append(f"\nTheme:\n{safe_str(analysis.get('theme', 'N/A'))}")
+        out.append(f"\nAudience Insights:\n{safe_str(analysis.get('audience_insights', 'N/A'))}\n\n")
 
         # Narrative Structure
         out.append("2. NARRATIVE STRUCTURE\n" + "-"*22)
@@ -548,24 +616,24 @@ class ExportService:
         for act_key in ["act_1", "act_2", "act_3"]:
             act = struct.get(act_key, {})
             if act:
-                out.append(f"\n{act.get('title', act_key.replace('_', ' ').title())}:")
-                out.append(f"  Description: {act.get('description', 'N/A')}")
-                out.append(f"  Conflict: {act.get('conflict', 'N/A')}")
-                out.append(f"  Rising Action: {act.get('rising_action', 'N/A')}")
+                out.append(f"\n{safe_str(act.get('title', act_key.replace('_', ' ').title()))}:")
+                out.append(f"  Description: {safe_str(act.get('description', 'N/A'))}")
+                out.append(f"  Conflict: {safe_str(act.get('conflict', 'N/A'))}")
+                out.append(f"  Rising Action: {safe_str(act.get('rising_action', 'N/A'))}")
                 if "resolution" in act:
-                    out.append(f"  Resolution: {act.get('resolution', 'N/A')}")
+                    out.append(f"  Resolution: {safe_str(act.get('resolution', 'N/A'))}")
         out.append("\n\n")
 
         # Characters
         out.append("3. CHARACTER PROFILES\n" + "-"*21)
         chars = data.get("characters", {}).get("characters", [])
         for char in chars:
-            out.append(f"\n* Name: {char.get('name', 'N/A')} (Age: {char.get('age', 'N/A')})")
-            out.append(f"  Backstory: {char.get('backstory', 'N/A')}")
-            out.append(f"  Personality: {char.get('personality', 'N/A')}")
-            out.append(f"  Goals: {char.get('goals', 'N/A')}")
-            out.append(f"  Strengths/Weaknesses: {char.get('strengths', 'N/A')} / {char.get('weaknesses', 'N/A')}")
-            out.append(f"  Arc: {char.get('arc', 'N/A')}")
+            out.append(f"\n* Name: {safe_str(char.get('name', 'N/A'))} (Age: {safe_str(char.get('age', 'N/A'))})")
+            out.append(f"  Backstory: {safe_str(char.get('backstory', 'N/A'))}")
+            out.append(f"  Personality: {safe_str(char.get('personality', 'N/A'))}")
+            out.append(f"  Goals: {safe_str(char.get('goals', 'N/A'))}")
+            out.append(f"  Strengths/Weaknesses: {safe_str(char.get('strengths', 'N/A'))} / {safe_str(char.get('weaknesses', 'N/A'))}")
+            out.append(f"  Arc: {safe_str(char.get('arc', 'N/A'))}")
         out.append("\n\n")
 
         # Scenes
@@ -607,9 +675,24 @@ class ExportService:
         out.append(f"Crew: {prod.get('crew_suggestions', 'N/A')}")
         out.append(f"Est Shoot Days: {prod.get('estimated_shoot_days', 'N/A')}\n\n")
 
+        # Budget Planning
+        out.append("8. BUDGET PLANNING\n" + "-"*18)
+        budget = data.get("budget_plan", {})
+        if budget:
+            pre = budget.get("pre_production", {}) or {}
+            prod_b = budget.get("production", {}) or {}
+            post = budget.get("post_production", {}) or {}
+            out.append(f"Pre-Production Cost: {pre.get('cost', 'N/A')}\nDetails: {pre.get('details', 'N/A')}\n")
+            out.append(f"Production Cost: {prod_b.get('cost', 'N/A')}\nDetails: {prod_b.get('details', 'N/A')}\n")
+            out.append(f"Post-Production Cost: {post.get('cost', 'N/A')}\nDetails: {post.get('details', 'N/A')}\n")
+            out.append(f"Total Budget: {budget.get('total_budget', 'N/A')}\n")
+            out.append(f"Saving Tips: {budget.get('cost_saving_tips', 'N/A')}\n\n")
+        else:
+            out.append("No budget details generated.\n\n")
+
         # Screenplay
-        out.append("8. SCREENPLAY\n" + "-"*13)
-        screenplay = data.get("screenplay", {}).get("screenplay_text", "")
+        out.append("9. SCREENPLAY\n" + "-"*13)
+        screenplay = safe_str(data.get("screenplay", {}).get("screenplay_text", ""))
         out.append(screenplay)
         
         return "\n".join(out).encode('utf-8')

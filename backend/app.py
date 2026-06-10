@@ -13,13 +13,22 @@ from backend.routes.storyboard_routes import storyboard_bp
 from backend.routes.sound_routes import sound_bp
 from backend.routes.production_routes import production_bp
 from backend.routes.export_routes import export_bp
+from backend.routes.budget_routes import budget_bp
 
 def create_app():
-    app = Flask(__name__)
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    frontend_dir = os.path.join(root_dir, "frontend")
+    
+    app = Flask(__name__, static_folder=frontend_dir, static_url_path="")
     app.config.from_object(Config)
 
     # Enable CORS for all routes (to support running frontend locally)
     CORS(app, resources={r"/*": {"origins": "*"}})
+
+    # Root route to serve static frontend index
+    @app.route("/", methods=["GET"])
+    def serve_index():
+        return app.send_static_file("index.html")
 
     # Register blueprints (with no url prefix to match exact API endpoint definitions)
     app.register_blueprint(auth_bp)
@@ -32,6 +41,7 @@ def create_app():
     app.register_blueprint(sound_bp)
     app.register_blueprint(production_bp)
     app.register_blueprint(export_bp)
+    app.register_blueprint(budget_bp)
 
     # Global Error Handlers
     @app.errorhandler(404)

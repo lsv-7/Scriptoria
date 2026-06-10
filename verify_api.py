@@ -67,6 +67,13 @@ def run_tests():
         )
         print("   - Screenplay generated successfully.")
         
+        scene_script = granite_service.generate_scene_script(
+            test_project["story_idea"], test_project["genre"], [{"name": "Vikram"}, {"name": "Anya"}], "Short Film",
+            {"scene_number": 1, "location": "INT. APARTMENT - DAY", "characters": "Vikram, Anya", "objective": "Discuss plans", "duration": "3 mins"},
+            [{"scene_number": 1, "location": "INT. APARTMENT - DAY", "characters": "Vikram, Anya", "objective": "Discuss plans", "duration": "3 mins"}]
+        )
+        print("   - Single scene script generated successfully.")
+        
         scenes = gemini_service.generate_scenes(test_project["story_idea"], test_project["genre"])
         print("   - Scenes generated successfully.")
         
@@ -78,6 +85,9 @@ def run_tests():
         
         prod = granite_service.generate_production_plan(test_project["story_idea"], test_project["genre"])
         print("   - Production Plan generated successfully.")
+        
+        budget = granite_service.generate_budget_plan(test_project["story_idea"], test_project["genre"])
+        print("   - Budget Plan generated successfully.")
         
         print("   [SUCCESS] All AI generation triggers completed.")
     except Exception as e:
@@ -95,7 +105,8 @@ def run_tests():
             "scene_breakdown": scenes,
             "storyboard": storyboards,
             "sound_design": sound,
-            "production_plan": prod
+            "production_plan": prod,
+            "budget_plan": budget
         }
         
         # Compile PDF
@@ -112,6 +123,8 @@ def run_tests():
         
         print("   [SUCCESS] Exporters compiled binary bytes correctly.")
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"   [FAILURE] Exporters test failed: {e}")
         return False
 

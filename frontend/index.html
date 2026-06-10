@@ -7,7 +7,7 @@
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS Styles -->
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body>
 
@@ -147,6 +147,11 @@
                     </a>
                 </li>
                 <li>
+                    <a class="sidebar-link generation-link disabled" onclick="switchSubview('budget')">
+                        <i class="fa-solid fa-calculator"></i> Budget Planner
+                    </a>
+                </li>
+                <li>
                     <a class="sidebar-link generation-link disabled" onclick="switchSubview('export')">
                         <i class="fa-solid fa-file-export"></i> Export Center
                     </a>
@@ -265,20 +270,6 @@
                             <p>Generate logs, themes, loglines, synopses, and act breakdowns.</p>
                         </div>
                     </div>
-                    
-                    <!-- Trigger panel -->
-                    <div class="info-card">
-                        <h3>Generator Panel</h3>
-                        <p style="margin-bottom: 1rem;">Use Gemini model to analyze the story concept and structure the narrative flow.</p>
-                        <div class="flex gap-1">
-                            <button id="btn-gen-analysis" class="btn btn-gold" onclick="triggerStoryAnalysis()">
-                                <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Story Analysis
-                            </button>
-                            <button id="btn-gen-structure" class="btn btn-primary" onclick="triggerNarrativeStructure()">
-                                <i class="fa-solid fa-shapes"></i> Generate Narrative Structure
-                            </button>
-                        </div>
-                    </div>
 
                     <!-- Output display -->
                     <div class="dashboard-grid">
@@ -290,7 +281,7 @@
                             <h3>Story Insights</h3>
                             <div id="output-story-analysis" class="screenplay-empty">
                                 <i class="fa-solid fa-magnifying-glass-chart" style="font-size: 2.5rem; margin-bottom: 10px; color: var(--color-muted);"></i>
-                                <p>Click Generate to analyze your story idea.</p>
+                                <p>Story insights will be displayed here once loaded.</p>
                             </div>
                         </div>
                         
@@ -302,25 +293,26 @@
                             <h3>3-Act Narrative Structure</h3>
                             <div id="output-story-structure" class="screenplay-empty">
                                 <i class="fa-solid fa-shapes" style="font-size: 2.5rem; margin-bottom: 10px; color: var(--color-muted);"></i>
-                                <p>Click Generate to create Act breakdowns.</p>
+                                <p>3-Act narrative structure will be displayed here once loaded.</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- ----------------------------------------------------
-                     SUB-VIEW: SCREENPLAY
-                     ---------------------------------------------------- -->
                 <div id="subview-screenplay" class="view-section">
                     <div class="subview-header">
                         <div>
                             <h2>Screenplay Generator</h2>
                             <p>Generate industry-compliant screenplay script drafts.</p>
                         </div>
-                        <button id="btn-gen-screenplay" class="btn btn-gold" onclick="triggerScreenplay()">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Script
-                        </button>
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <div id="screenplay-scene-select-wrapper" style="display: none;">
+                                <label for="screenplay-scene-select" style="font-size: 0.85rem; margin-right: 5px; color: var(--color-muted);">Select Scene:</label>
+                                <select id="screenplay-scene-select" style="width: auto; background: var(--bg-tertiary); color: var(--color-primary); border: 1px solid var(--border-accent); border-radius: 6px; padding: 6px 12px; font-size: 0.9rem; cursor: pointer; outline: none;" onchange="onScreenplaySceneChanged()"></select>
+                            </div>
+                        </div>
                     </div>
+
 
                     <div style="position: relative; min-height: 500px;">
                         <div id="loader-screenplay" class="loading-overlay">
@@ -331,7 +323,7 @@
                         <div id="screenplay-paper" class="screenplay-container">
                             <div class="screenplay-empty">
                                 <i class="fa-solid fa-scroll" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
-                                <p>No script generated yet. Click "Generate Script" to formulate screenplay using IBM Granite AI.</p>
+                                <p>The screenplay script will be displayed here once loaded.</p>
                             </div>
                         </div>
                     </div>
@@ -346,9 +338,6 @@
                             <h2>Character Profile Designer</h2>
                             <p>Generate protagonist, antagonist, and secondary character archetypes.</p>
                         </div>
-                        <button id="btn-gen-characters" class="btn btn-gold" onclick="triggerCharacters()">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Characters
-                        </button>
                     </div>
 
                     <div style="position: relative; min-height: 400px;">
@@ -360,7 +349,7 @@
                         <div id="characters-container" class="characters-grid">
                             <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
                                 <i class="fa-solid fa-users" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
-                                <p>Click Generate to design characters for this project.</p>
+                                <p>Character profiles will be displayed here once loaded.</p>
                             </div>
                         </div>
                     </div>
@@ -375,9 +364,6 @@
                             <h2>Scene Breakdown List</h2>
                             <p>Generate step-by-step shooting scene checklists.</p>
                         </div>
-                        <button id="btn-gen-scenes" class="btn btn-gold" onclick="triggerScenes()">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> Breakdown Scenes
-                        </button>
                     </div>
 
                     <div style="position: relative; min-height: 300px;">
@@ -389,7 +375,7 @@
                         <div id="scenes-container" style="overflow-x: auto;">
                             <div class="info-card text-center" style="padding: 4rem;">
                                 <i class="fa-solid fa-list-check" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
-                                <p>Click Breakdown Scenes to dissect the story idea.</p>
+                                <p>Scene breakdowns will be displayed here once loaded.</p>
                             </div>
                         </div>
                     </div>
@@ -399,26 +385,31 @@
                      SUB-VIEW: STORYBOARD
                      ---------------------------------------------------- -->
                 <div id="subview-storyboard" class="view-section">
-                    <div class="subview-header">
+                    <div class="subview-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
                         <div>
-                            <h2>Storyboard Prompt Deck</h2>
-                            <p>Cinematography panels containing description directives.</p>
+                            <h2>Storyboard & Cinematography Deck</h2>
+                            <p>Director's shot list and camera composition directives.</p>
                         </div>
-                        <button id="btn-gen-storyboard" class="btn btn-gold" onclick="triggerStoryboard()">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Prompts
-                        </button>
+                        <div class="view-toggles" style="display: flex; gap: 10px; background: rgba(255, 255, 255, 0.03); padding: 4px; border-radius: 8px; border: 1px solid var(--border-accent);">
+                            <button class="btn btn-sm btn-gold active" id="btn-sb-grid" onclick="setStoryboardViewMode('grid')" style="margin: 0; padding: 6px 12px; border-radius: 6px;">
+                                <i class="fa-solid fa-grip"></i> Grid View
+                            </button>
+                            <button class="btn btn-sm btn-gold" id="btn-sb-carousel" onclick="setStoryboardViewMode('carousel')" style="margin: 0; padding: 6px 12px; border-radius: 6px; background: transparent; border-color: transparent;">
+                                <i class="fa-solid fa-square-play"></i> Presenter Mode
+                            </button>
+                        </div>
                     </div>
 
                     <div style="position: relative; min-height: 400px;">
                         <div id="loader-storyboard" class="loading-overlay">
                             <div class="film-reel-loader"></div>
-                            <div class="loading-text">Sketching Storyboard prompts...</div>
+                            <div class="loading-text">Organizing Shot list...</div>
                         </div>
 
-                        <div id="storyboard-container" class="storyboard-grid">
+                        <div id="storyboard-container" class="storyboard-grid-no-images">
                             <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
-                                <i class="fa-solid fa-images" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
-                                <p>Click Generate to compile scene prompt boards.</p>
+                                <i class="fa-solid fa-clapperboard" style="font-size: 3rem; margin-bottom: 15px; color: var(--accent-gold);"></i>
+                                <p>Cinematography prompts and shot configurations will be displayed here once loaded.</p>
                             </div>
                         </div>
                     </div>
@@ -433,9 +424,6 @@
                             <h2>Sound & Audio Design Blueprint</h2>
                             <p>Configure foley, soundtracks, dialogue processing, and background ambient vibes.</p>
                         </div>
-                        <button id="btn-gen-sound" class="btn btn-gold" onclick="triggerSoundDesign()">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Sound Plan
-                        </button>
                     </div>
 
                     <div style="position: relative; min-height: 400px;">
@@ -447,7 +435,7 @@
                         <div id="sound-container" class="dashboard-grid">
                             <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
                                 <i class="fa-solid fa-volume-high" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
-                                <p>Click Generate to orchestrate audio design using IBM Granite AI.</p>
+                                <p>Sound design plan will be displayed here once loaded.</p>
                             </div>
                         </div>
                     </div>
@@ -462,9 +450,6 @@
                             <h2>Production Planning & Line Checklist</h2>
                             <p>Analyze budget days, shoot schedules, props list, and crew slots.</p>
                         </div>
-                        <button id="btn-gen-production" class="btn btn-gold" onclick="triggerProductionPlan()">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Production Plan
-                        </button>
                     </div>
 
                     <div style="position: relative; min-height: 400px;">
@@ -476,7 +461,33 @@
                         <div id="production-container" class="dashboard-grid">
                             <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
                                 <i class="fa-solid fa-calendar-days" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
-                                <p>Click Generate to compile physical logistics plan using IBM Granite AI.</p>
+                                <p>Production plan will be displayed here once loaded.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ----------------------------------------------------
+                     SUB-VIEW: BUDGET PLANNER
+                     ---------------------------------------------------- -->
+                <div id="subview-budget" class="view-section">
+                    <div class="subview-header">
+                        <div>
+                            <h2>Budget Planner & Cost Estimator</h2>
+                            <p>Estimate costs for pre-production, filming (production), and post-production.</p>
+                        </div>
+                    </div>
+
+                    <div style="position: relative; min-height: 400px;">
+                        <div id="loader-budget" class="loading-overlay">
+                            <div class="film-reel-loader"></div>
+                            <div class="loading-text">Estimating Production Costs...</div>
+                        </div>
+
+                        <div id="budget-container" class="dashboard-grid">
+                            <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
+                                <i class="fa-solid fa-calculator" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                                <p>Budget plan will be displayed here once loaded.</p>
                             </div>
                         </div>
                     </div>
@@ -559,7 +570,7 @@
             <h3 class="modal-title"><i class="fa-solid fa-user-lock"></i> Login to Studio</h3>
             
             <!-- Mock Mode Toggle for Instant Testing -->
-            <div style="background: rgba(124, 77, 255, 0.1); border: 1px solid var(--border-accent); border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+            <div style="background: rgba(212, 175, 55, 0.12); border: 1px solid var(--border-accent); border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
                 <div>
                     <strong style="color: var(--accent-gold); font-size: 0.85rem; display: block;">Enable Demo Mode</strong>
                     <span style="font-size: 0.75rem; color: var(--color-secondary);">Runs in-memory without setting up Firebase.</span>
@@ -596,7 +607,7 @@
             <button class="modal-close" onclick="closeModal('register-modal')"><i class="fa-solid fa-xmark"></i></button>
             <h3 class="modal-title"><i class="fa-solid fa-user-plus"></i> Join CineForge Studio</h3>
             
-            <div style="background: rgba(124, 77, 255, 0.1); border: 1px solid var(--border-accent); border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+            <div style="background: rgba(212, 175, 55, 0.12); border: 1px solid var(--border-accent); border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
                 <div>
                     <strong style="color: var(--accent-gold); font-size: 0.85rem; display: block;">Enable Demo Mode</strong>
                     <span style="font-size: 0.75rem; color: var(--color-secondary);">Register local session without Firebase.</span>
@@ -647,11 +658,54 @@
                     <label for="proj-idea">Story Idea / Pitch</label>
                     <textarea id="proj-idea" class="form-control" placeholder="Summarize your core concept: protagonist, setting, inciting incident, and stakes..." required></textarea>
                 </div>
+                <div class="form-group">
+                    <label for="proj-duration">Story Duration / Length</label>
+                    <select id="proj-duration" class="form-control" required>
+                        <option value="" disabled selected>Select Target Duration...</option>
+                        <option value="Short Film (under 15 mins)">Short Film (under 15 mins)</option>
+                        <option value="Mini-Series Excerpt (30-45 mins)">Mini-Series Excerpt (30-45 mins)</option>
+                        <option value="Feature Film (90-120 mins)">Feature Film (90-120 mins)</option>
+                    </select>
+                </div>
                 <div class="flex justify-between" style="gap: 15px; margin-top: 1.5rem;">
                     <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeModal('create-project-modal')">Cancel</button>
                     <button type="submit" class="btn btn-gold" style="flex: 2;">Initialize Studio Project</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Global Generation Overlay -->
+    <div id="global-gen-overlay" class="global-gen-overlay">
+        <div class="global-gen-box">
+            <div class="film-reel-loader" style="width: 80px; height: 80px; margin-bottom: 1rem;"></div>
+            <div class="global-gen-title">CINEFORGE AI</div>
+            <div class="global-gen-subtitle">Formulating Studio Pre-Production Package...</div>
+            <p style="font-size: 0.85rem; color: var(--color-muted); max-width: 400px; margin-bottom: 1rem; line-height: 1.4;">
+                Designing characters, structuring act progression, dissecting screenplay scenes, compiling storyboard visual prompts, and calculating budget sheets.
+            </p>
+            <div class="global-gen-steps">
+                <div id="step-char" class="global-gen-step active">
+                    <i class="fa-solid fa-users"></i>
+                    <span>Designing Indian character profiles...</span>
+                </div>
+                <div id="step-story" class="global-gen-step">
+                    <i class="fa-solid fa-shapes"></i>
+                    <span>Analyzing story acts & narrative arcs...</span>
+                </div>
+                <div id="step-scenes" class="global-gen-step">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Breaking down scenes & sequences...</span>
+                </div>
+                <div id="step-script" class="global-gen-step">
+                    <i class="fa-solid fa-scroll"></i>
+                    <span>Writing screenplay & dialogues...</span>
+                </div>
+                <div id="step-assets" class="global-gen-step">
+                    <i class="fa-solid fa-calculator"></i>
+                    <span>Compiling budget, sound, and storyboards...</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -663,8 +717,10 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     
     <!-- Application Logic Scripts -->
-    <script src="js/api.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/api.js?v=10"></script>
+    <script src="js/auth.js?v=10"></script>
+    <script src="js/app.js?v=10"></script>
 </body>
+
+
 </html>

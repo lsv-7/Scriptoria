@@ -1,202 +1,329 @@
 import os
 import json
-import requests
+import google.generativeai as genai
 from backend.config import Config
 from backend.utils.prompts import (
     SCREENPLAY_PROMPT,
     SOUND_DESIGN_PROMPT,
-    PRODUCTION_PLAN_PROMPT
+    PRODUCTION_PLAN_PROMPT,
+    BUDGET_PLAN_PROMPT
 )
-from backend.utils.helpers import clean_json_response
+from backend.utils.helpers import clean_json_response, clean_prose_data
+from backend.utils.story_generator import generate_mock_story
+
+# Global/module level variables for rate limit cooldowns
+GROQ_COOLDOWN_UNTIL = 0.0
+GEMINI_COOLDOWN_UNTIL = 0.0
+GEMINI_QUOTA_EXCEEDED = False
 
 class GraniteService:
     def __init__(self):
-        self.api_key = Config.WATSONX_API_KEY
-        self.project_id = Config.WATSONX_PROJECT_ID
-        self.url = Config.WATSONX_URL
-        self.model_id = Config.WATSONX_MODEL_ID
-        self._token = None
-        self.initialized = bool(self.api_key and self.project_id)
+        self.api_key = Config.GEMINI_API_KEY
+        self.groq_key = Config.GROQ_API_KEY
+        self.initialized = bool(self.api_key)
         if self.initialized:
-            print(">>> IBM Watsonx API credentials configured.")
+            try:
+                genai.configure(api_key=self.api_key)
+            except Exception:
+                pass
+            print(">>> Google Gemini API configured successfully (routed from GraniteService).")
         else:
-            print(">>> IBM Watsonx credentials incomplete. Using local mock generator for Granite modules.")
+            print(">>> Gemini API key not found in GraniteService. Using local mock generator.")
 
-    def _get_token(self):
-        """Exchange IAM API key for IBM Cloud OAuth token."""
-        if not self.api_key:
+        if self.groq_key:
+            print(">>> Groq API client configured successfully in GraniteService.")
+
+    def _generate_groq(self, prompt, max_tokens=1024):
+        """Internal helper to call Groq API when GROQ_API_KEY is configured with rate-limit cooldown."""
+        global GROQ_COOLDOWN_UNTIL
+        import time
+        
+        if not self.groq_key:
             return None
             
-        # If token is cached, we could return it, but for simplicity/robustness we request it.
-        if self._token:
-            return self._token
+        if time.time() < GROQ_COOLDOWN_UNTIL:
+            print(">>> GraniteService: Groq API rate limit cooldown active. Skipping call.")
+            return None
             
-        try:
-            headers = {"Content-Type": "application/x-www-form-urlencoded"}
-            data = {
-                "grant_type": "urn:ibm:params:oauth:grant-type:apikey",
-                "apikey": self.api_key
+        import requests
+        
+        # List of models to try in order of preference
+        models = [
+            os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            "llama-3.1-8b-instant"
+        ]
+        
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.groq_key}",
+            "Content-Type": "application/json"
+        }
+        
+        for model in models:
+            payload = {
+                "model": model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "temperature": 0.0,
+                "max_tokens": max_tokens
             }
-            response = requests.post("https://iam.cloud.ibm.com/identity/token", headers=headers, data=data, timeout=10)
-            if response.status_code == 200:
-                res_data = response.json()
-                self._token = res_data.get("access_token")
-                return self._token
-            else:
-                print(f"Failed to get IBM Cloud Token: {response.status_code} - {response.text}")
-                return None
-        except Exception as e:
-            print(f"Error fetching IBM Cloud Token: {e}")
-            return None
+            
+            try:
+                print(f">>> GraniteService trying Groq API with model: {model}...")
+                response = requests.post(url, json=payload, headers=headers, timeout=20)
+                if response.status_code == 200:
+                    res_json = response.json()
+                    content = res_json["choices"][0]["message"]["content"]
+                    print(f">>> GraniteService Groq API call succeeded using model {model}.")
+                    return content
+                elif response.status_code == 429:
+                    print(f">>> GraniteService: Groq API returned 429 rate limit error for model {model}. Activating 30s cooldown.")
+                    GROQ_COOLDOWN_UNTIL = time.time() + 30.0
+                    break
+                else:
+                    print(f">>> GraniteService Groq API returned error {response.status_code} for model {model}: {response.text}")
+                    # If unauthorized or forbidden, stop trying other models
+                    if response.status_code in [401, 403]:
+                        break
+            except Exception as e:
+                print(f">>> GraniteService Exception calling Groq API with model {model}: {e}")
+                
+        return None
 
     def _generate(self, prompt, max_tokens=1024):
-        """Internal helper to call Watsonx Text Generation API."""
+        """Internal helper to call Gemini API with rate-limit cooldown and fail-fast."""
+        global GEMINI_QUOTA_EXCEEDED, GEMINI_COOLDOWN_UNTIL
+        import time
+        
+        if GEMINI_QUOTA_EXCEEDED:
+            print(">>> Gemini API quota previously exceeded in GraniteService. Skipping call.")
+            return None
+            
+        if time.time() < GEMINI_COOLDOWN_UNTIL:
+            print(">>> GraniteService: Gemini API rate limit cooldown active. Skipping call.")
+            return None
+            
         if not self.initialized:
             return None
             
-        token = self._get_token()
-        if not token:
-            return None
-            
         try:
-            endpoint = f"{self.url.rstrip('/')}/ml/v1/text/generation?version=2023-05-29"
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            }
-            payload = {
-                "model_id": self.model_id,
-                "input": prompt,
-                "parameters": {
-                    "decoding_method": "greedy",
-                    "max_new_tokens": max_tokens,
-                    "min_new_tokens": 1,
-                    "repetition_penalty": 1.1
-                },
-                "project_id": self.project_id
-            }
-            
-            response = requests.post(endpoint, headers=headers, json=payload, timeout=30)
-            if response.status_code == 200:
-                res_json = response.json()
-                results = res_json.get("results", [])
-                if results:
-                    return results[0].get("generated_text", "")
-            else:
-                print(f"Watsonx API error: {response.status_code} - {response.text}")
+            model = genai.GenerativeModel("gemini-2.5-flash")
+            generation_config = genai.types.GenerationConfig(max_output_tokens=max_tokens, temperature=0.0)
+            response = model.generate_content(prompt, generation_config=generation_config)
+            return response.text
         except Exception as e:
-            print(f"Exception calling Watsonx API: {e}")
-            
-        return None
+            err_str = str(e)
+            if "429" in err_str or "quota" in err_str.lower() or "limit" in err_str.lower():
+                if any(x in err_str.lower() for x in ["billing", "credits", "plan", "free tier"]):
+                    print(">>> Gemini API billing quota block detected in GraniteService. Disabling Gemini.")
+                    GEMINI_QUOTA_EXCEEDED = True
+                else:
+                    print(">>> GraniteService: Gemini API rate limit hit (429). Activating cooldown for 30 seconds.")
+                    GEMINI_COOLDOWN_UNTIL = time.time() + 30.0
+            else:
+                print(f"Error calling Gemini API in GraniteService: {e}")
+            return None
 
-    def generate_screenplay(self, story_idea, genre, characters_list):
+    def generate_screenplay(self, story_idea, genre, characters_list, duration_length="Short Film"):
         """Generates a professional screenplay script."""
         chars_str = ", ".join([c.get("name", "") for c in characters_list]) if isinstance(characters_list, list) else str(characters_list)
         formatted_prompt = SCREENPLAY_PROMPT.format(
             story_idea=story_idea,
             genre=genre,
-            characters_list=chars_str
+            characters_list=chars_str,
+            duration_length=duration_length
         )
         
-        response_text = self._generate(formatted_prompt, max_tokens=1500)
+        # 1. Try Groq
+        response_text = self._generate_groq(formatted_prompt, max_tokens=1500)
+        
+        # 2. Try Gemini
+        if not response_text:
+            response_text = self._generate(formatted_prompt, max_tokens=1500)
+            
         if response_text:
             return response_text.strip()
             
         # Mock Fallback
         return self._mock_screenplay(story_idea, genre, characters_list)
 
-    def generate_sound_design(self, story_idea, genre):
+    def generate_sound_design(self, story_idea, genre, characters_list=None, scenes_list=None):
         """Generates background music, ambience, foley, vocal treatment, sound notes."""
+        chars_str = ", ".join([c.get("name", "") if isinstance(c, dict) else str(c) for c in characters_list]) if isinstance(characters_list, list) else str(characters_list or "as described in the story")
+        scenes_str = ""
+        if isinstance(scenes_list, list):
+            scenes_str = "\n".join([f"Scene {s.get('scene_number', i+1)}: {s.get('location', 'INT. SCENE - DAY')} - Characters: {s.get('characters', '')} - Objective: {s.get('objective', '')}" for i, s in enumerate(scenes_list)])
+        else:
+            scenes_str = str(scenes_list or "as described in the story")
+
         formatted_prompt = SOUND_DESIGN_PROMPT.format(
             story_idea=story_idea,
-            genre=genre
+            genre=genre,
+            characters_list=chars_str,
+            scenes_list=scenes_str
         )
         
-        response_text = self._generate(formatted_prompt, max_tokens=1024)
+        # 1. Try Groq
+        response_text = self._generate_groq(formatted_prompt, max_tokens=1024)
+        
+        # 2. Try Gemini
+        if not response_text:
+            response_text = self._generate(formatted_prompt, max_tokens=1024)
+            
         if response_text:
             parsed = clean_json_response(response_text)
             if parsed and "background_music" in parsed:
-                return parsed
+                return clean_prose_data(parsed)
                 
         # Mock Fallback
-        return self._mock_sound_design(story_idea, genre)
+        return clean_prose_data(self._mock_sound_design(story_idea, genre, characters_list))
 
-    def generate_production_plan(self, story_idea, genre):
+    def generate_production_plan(self, story_idea, genre, characters_list=None, scenes_list=None):
         """Generates shooting locations, props, equipment, crew, and estimated shoot days."""
+        chars_str = ", ".join([c.get("name", "") if isinstance(c, dict) else str(c) for c in characters_list]) if isinstance(characters_list, list) else str(characters_list or "as described in the story")
+        scenes_str = ""
+        if isinstance(scenes_list, list):
+            scenes_str = "\n".join([f"Scene {s.get('scene_number', i+1)}: {s.get('location', 'INT. SCENE - DAY')} - Characters: {s.get('characters', '')} - Objective: {s.get('objective', '')}" for i, s in enumerate(scenes_list)])
+        else:
+            scenes_str = str(scenes_list or "as described in the story")
+
         formatted_prompt = PRODUCTION_PLAN_PROMPT.format(
             story_idea=story_idea,
-            genre=genre
+            genre=genre,
+            characters_list=chars_str,
+            scenes_list=scenes_str
         )
         
-        response_text = self._generate(formatted_prompt, max_tokens=1024)
+        # 1. Try Groq
+        response_text = self._generate_groq(formatted_prompt, max_tokens=1024)
+        
+        # 2. Try Gemini
+        if not response_text:
+            response_text = self._generate(formatted_prompt, max_tokens=1024)
+            
         if response_text:
             parsed = clean_json_response(response_text)
             if parsed and "shooting_locations" in parsed:
-                return parsed
+                return clean_prose_data(parsed)
                 
         # Mock Fallback
-        return self._mock_production_plan(story_idea, genre)
+        return clean_prose_data(self._mock_production_plan(story_idea, genre, characters_list))
+
+    def generate_budget_plan(self, story_idea, genre, characters_list=None, scenes_list=None):
+        """Generates dynamic pre-production, production, and post-production budget estimates."""
+        chars_str = ", ".join([c.get("name", "") if isinstance(c, dict) else str(c) for c in characters_list]) if isinstance(characters_list, list) else str(characters_list or "as described in the story")
+        scenes_str = ""
+        if isinstance(scenes_list, list):
+            scenes_str = "\n".join([f"Scene {s.get('scene_number', i+1)}: {s.get('location', 'INT. SCENE - DAY')} - Characters: {s.get('characters', '')} - Objective: {s.get('objective', '')}" for i, s in enumerate(scenes_list)])
+        else:
+            scenes_str = str(scenes_list or "as described in the story")
+
+        formatted_prompt = BUDGET_PLAN_PROMPT.format(
+            story_idea=story_idea,
+            genre=genre,
+            characters_list=chars_str,
+            scenes_list=scenes_str
+        )
+        
+        # 1. Try Groq
+        response_text = self._generate_groq(formatted_prompt, max_tokens=1024)
+        
+        # 2. Try Gemini
+        if not response_text:
+            response_text = self._generate(formatted_prompt, max_tokens=1024)
+            
+        if response_text:
+            parsed = clean_json_response(response_text)
+            if parsed and "pre_production" in parsed:
+                return clean_prose_data(parsed)
+                
+        # Mock Fallback
+        return clean_prose_data(self._mock_budget_plan(story_idea, genre, characters_list))
+
+    def generate_scene_script(self, story_idea, genre, characters_list, duration_length, scene, all_scenes):
+        """Generates a professional screenplay script for a specific scene."""
+        scene_number = scene.get("scene_number", 1)
+        location = scene.get("location", "INT. LOCATION - DAY")
+        scene_characters = scene.get("characters", "")
+        objective = scene.get("objective", "")
+        duration = scene.get("duration", "2 mins")
+        
+        # Build scene breakdown summary for context
+        scene_breakdown_summary = ""
+        for s in all_scenes:
+            scene_breakdown_summary += f"Scene {s.get('scene_number')}: {s.get('location')} - Characters: {s.get('characters')} - Objective: {s.get('objective')}\n"
+            
+        chars_str = ", ".join([c.get("name", "") for c in characters_list]) if isinstance(characters_list, list) else str(characters_list)
+        
+        from backend.utils.prompts import GENERATE_SCENE_PROMPT
+        formatted_prompt = GENERATE_SCENE_PROMPT.format(
+            story_idea=story_idea,
+            genre=genre,
+            characters_list=chars_str,
+            duration_length=duration_length,
+            scene_number=scene_number,
+            location=location,
+            scene_characters=scene_characters,
+            objective=objective,
+            duration=duration,
+            scene_breakdown_summary=scene_breakdown_summary
+        )
+        
+        # 1. Try Groq
+        response_text = self._generate_groq(formatted_prompt, max_tokens=1500)
+        
+        # 2. Try Gemini
+        if not response_text:
+            response_text = self._generate(formatted_prompt, max_tokens=1500)
+            
+        if response_text:
+            return response_text.strip()
+            
+        # Mock Fallback
+        from backend.utils.story_generator import generate_mock_scene_script
+        return generate_mock_scene_script(
+            story_idea=story_idea,
+            genre=genre,
+            scene_number=scene_number,
+            location=location,
+            scene_characters=scene_characters,
+            objective=objective,
+            duration=duration,
+            characters_list=characters_list
+        )
 
     # --- MOCK GENERATION FALLBACKS ---
     def _mock_screenplay(self, story_idea, genre, characters_list):
-        char1 = "VIKRAM"
-        char2 = "ANYA"
-        if isinstance(characters_list, list) and len(characters_list) >= 2:
-            char1 = characters_list[0].get("name", "VIKRAM").upper()
-            char2 = characters_list[1].get("name", "ANYA").upper()
-            
-        return f"""FADE IN:
+        return generate_mock_story(
+            story_idea=story_idea,
+            genre=genre,
+            characters_list=characters_list
+        )["screenplay"]
 
-INT. ABANDONED WAREHOUSE - NIGHT
+    def _mock_sound_design(self, story_idea, genre, characters_list=None):
+        return generate_mock_story(
+            story_idea=story_idea,
+            genre=genre,
+            characters_list=characters_list
+        )["sound_design"]
 
-Dust particles dance in the pale light of a single swinging bulb. The ambient hum of the city vibrates through the rusted metal walls. 
+    def _mock_production_plan(self, story_idea, genre, characters_list=None):
+        return generate_mock_story(
+            story_idea=story_idea,
+            genre=genre,
+            characters_list=characters_list
+        )["production_plan"]
 
-{char1} paces back and forth, holding a cellular phone, his expression tight with anxiety. {char2} sits on a stack of wooden crates, carefully tapping a wireframe device on her lap.
-
-{char1}
-(stops pacing)
-He's not answering. It's been two hours since the drop time.
-
-{char2}
-He's smart. If they caught on, he would have dumped the drives and gone dark.
-
-{char1}
-And what about the files on this device? If we don't upload them in twenty minutes, the override locks down.
-
-{char2} looking up from her device. Her eyes show a mixture of fear and absolute resolve.
-
-{char2}
-Then we don't wait for him. We initialize the broadcast ourselves.
-
-{char1}
-Without the access codes? Anya, it'll trigger the local alarm grid. We'll be trapped in here.
-
-{char2}
-We are already trapped, Vikram. Look around. This is the only chance we have.
-
-She hits a final key. The device emits a soft, escalating chime. A purple glow reflects in her eyes.
-
-FADE OUT.
-"""
-
-    def _mock_sound_design(self, story_idea, genre):
-        return {
-            "background_music": f"An atmospheric, synth-heavy score with slow, brooding cello movements for tension. The tempo starts at 80 BPM, building to a frantic electronic heartbeat of 130 BPM during chase sequences. Motif uses a low, repeating minor-fifth piano key to signify impending discovery.",
-            "ambience": "Distant industrial drone, rhythmic water droplets, muffled city sirens bouncing off concrete, and wind whistling through thin metal vents.",
-            "foley_effects": "Heavy leather boots dragging on concrete, rustling canvas jackets, crisp metallic clicks of hard drive bay locks, keys rattling, and the heavy breathing of characters trapped in enclosed spaces.",
-            "dialogue_treatment": "Clean, dry dialogue for close-ups, with subtle, dark room-reverb added in the warehouse. Brief radio distortion and low-pass filter on phone-transmitted voices.",
-            "scene_sound_notes": "Scene 1: Silence broken only by wet footsteps. Sound of a match striking. Scene 2: High-pitch electronic feedback building as the device activates. Scene 3: Hard cut to silence at the blackout, ending with a low-frequency hum."
-        }
-
-    def _mock_production_plan(self, story_idea, genre):
-        return {
-            "shooting_locations": "1. Industrial Warehouse: Authentic, distressed interior with power access. Requires fire safety permit. 2. Back Alleys: Tense chase setting. Requires evening street closure and city permit for dynamic lighting setup.",
-            "required_props": "1. The CineForge Device: Custom mock-up glowing purple box with internal LED lights. 2. Tactical backpack, rugged laptop, fake security access cards, and handheld flashlight.",
-            "equipment": "Camera: RED V-Raptor or Sony FX6 for low-light performance. Lenses: anamorphic primes for a cinematic widescreen look. G&E: Astera tubes (for colored purple glow), 1x1 LED panels, and a haze machine.",
-            "crew_suggestions": "Director, Director of Photography, Gaffer/Key Grip, Production Sound Mixer, Art Director/Prop Master, and Hair/Makeup Artist.",
-            "estimated_shoot_days": "3 days (Day 1: Warehouse dialogues, Day 2: Alleyway chases, Day 3: Intimate close-ups and pickup shots)."
-        }
+    def _mock_budget_plan(self, story_idea, genre, characters_list=None):
+        return generate_mock_story(
+            story_idea=story_idea,
+            genre=genre,
+            characters_list=characters_list
+        )["budget_plan"]
 
 # Instantiate service singleton
 granite_service = GraniteService()

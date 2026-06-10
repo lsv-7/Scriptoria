@@ -25,10 +25,38 @@ def generate_scenes():
         return error_response("Access denied.", 403)
         
     story_idea = project.get("story_idea")
-    genre = project.get("genre")
     
+    # Check if we have refined story insights (story analysis) to represent its content
+    story_analysis = firebase_service.get_document("story_analysis", project_id)
+    if story_analysis:
+        def format_val_str(val):
+            if not val:
+                return ""
+            if isinstance(val, dict):
+                return " ".join([f"{k.replace('_', ' ').title()}: {format_val_str(v)}" for k, v in val.items()])
+            if isinstance(val, list):
+                return " ".join([format_val_str(item) for item in val])
+            return str(val)
+        story_idea = f"Pitch: {project.get('story_idea')}\nLogline: {format_val_str(story_analysis.get('logline'))}\nSynopsis: {format_val_str(story_analysis.get('synopsis'))}\nTheme: {format_val_str(story_analysis.get('theme'))}"
+
+    genre = project.get("genre")
+    duration_length = project.get("duration_length", "Short Film")
+    
+    # Retrieve or auto-generate characters to maintain consistent names
+    characters_doc = firebase_service.get_document("characters", project_id)
+    if not characters_doc or "characters" not in characters_doc or not characters_doc["characters"]:
+        characters_doc = gemini_service.generate_characters(story_idea, genre)
+        if characters_doc and "characters" in characters_doc:
+            characters_doc["project_id"] = project_id
+            characters_doc["created_at"] = datetime.datetime.utcnow().isoformat()
+            firebase_service.set_document("characters", project_id, characters_doc)
+            
+    characters_list = []
+    if characters_doc and "characters" in characters_doc:
+        characters_list = characters_doc["characters"]
+        
     # Generate scenes
-    scenes_data = gemini_service.generate_scenes(story_idea, genre)
+    scenes_data = gemini_service.generate_scenes(story_idea, genre, duration_length, characters_list)
     if not scenes_data or "error" in scenes_data:
         return error_response("Failed to generate scene breakdown from Gemini.", 500, details=scenes_data)
         

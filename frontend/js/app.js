@@ -3,17 +3,76 @@
 // --- STATE MANAGEMENT ---
 let currentUser = null;
 let activeProject = null;
+let activeProjectData = null; // Client-side cache of all project pre-production data
 let allProjects = [];
+let currentScreenplayScenes = [];
+let lastScreenplayDoc = null;
+let lastSceneBreakdown = null;
+let currentStoryboardDoc = null; // Stored storyboard document
+let storyboardViewMode = "grid"; // "grid" or "carousel"
+let currentStoryboardSlideIndex = 0; // Active slide for Presenter Mode
+
+
+// --- GENERAL HELPER FOR SAFE OBJECT/ARRAY TEXT FORMATTING ---
+function formatValue(val) {
+    if (val === undefined || val === null) {
+        return "N/A";
+    }
+    if (typeof val === "object") {
+        if (Array.isArray(val)) {
+            if (val.length === 0) return "None";
+            if (typeof val[0] === "object") {
+                return "<ul style='margin-left: 15px; list-style-type: disc;'>" + val.map(item => {
+                    const fields = Object.entries(item)
+                        .map(([k, v]) => `<strong>${k.replace(/_/g, ' ').toUpperCase()}:</strong> ${formatValue(v)}`)
+                        .join(" | ");
+                    return `<li style='margin-bottom: 5px;'>${fields}</li>`;
+                }).join("") + "</ul>";
+            }
+            return "<ul style='margin-left: 15px; list-style-type: disc;'>" + val.map(item => `<li style='margin-bottom: 5px;'>${formatValue(item)}</li>`).join("") + "</ul>";
+        }
+        return "<ul style='margin-left: 15px; list-style-type: disc;'>" + Object.entries(val).map(([k, v]) => {
+            return `<li style='margin-bottom: 5px;'><strong>${k.replace(/_/g, ' ').toUpperCase()}:</strong> ${formatValue(v)}</li>`;
+        }).join("") + "</ul>";
+    }
+    return String(val).replace(/\n/g, "<br/>");
+}
+
+/**
+ * Handles image loading errors on storyboard cards to swap to a backup URL
+ * and avoids infinite error loops by setting a custom data attribute.
+ */
+function handleStoryboardImageError(img, backupUrl) {
+    if (img.getAttribute("data-failed") === "true") {
+        // Backup image failed too, resolve loader cleanly
+        const loader = img.parentNode.querySelector(".film-reel-loader");
+        if (loader) loader.remove();
+        img.style.opacity = "1";
+        return;
+    }
+    img.setAttribute("data-failed", "true");
+    img.src = backupUrl;
+}
 
 // --- INITIALIZATION ---
 document.addEventListener("DOMContentLoaded", () => {
     checkAuthenticationState();
+
     
-    // Automatically bind escape key to close modals
+    // Automatically bind key controls for modals and storyboard carousel navigation
     window.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
             const openModal = document.querySelector(".modal.active");
             if (openModal) closeModal(openModal.id);
+        }
+        
+        // Presenter mode carousel arrow key navigation
+        if (storyboardViewMode === "carousel" && document.getElementById("subview-storyboard").classList.contains("active")) {
+            if (e.key === "ArrowRight" || e.key === "Right") {
+                storyboardNextSlide();
+            } else if (e.key === "ArrowLeft" || e.key === "Left") {
+                storyboardPrevSlide();
+            }
         }
     });
 });
@@ -34,6 +93,7 @@ function checkAuthenticationState() {
 function showLandingPage() {
     currentUser = null;
     activeProject = null;
+    activeProjectData = null; // Clear cache
     document.getElementById("landing-view").style.display = "flex";
     document.getElementById("dashboard-view").style.display = "none";
 }
@@ -69,7 +129,7 @@ function onUserAuthenticated() {
 // --- SUB-VIEW ROUTING CONTROLLER ---
 function switchSubview(subviewId) {
     // Check if subview requires an active project
-    const restrictedViews = ["story", "screenplay", "characters", "scenes", "storyboard", "sound", "production", "export"];
+    const restrictedViews = ["story", "screenplay", "characters", "scenes", "storyboard", "sound", "production", "budget", "export"];
     
     if (restrictedViews.includes(subviewId) && !activeProject) {
         showToast("Please select or create a project first!", "error");
@@ -114,6 +174,7 @@ function switchSubview(subviewId) {
         "storyboard": "Storyboard Prompts",
         "sound": "Sound Design Blueprint",
         "production": "Production Planning",
+        "budget": "Budget Planner & Cost Estimator",
         "export": "Export Center",
         "projects": "My Projects Directory"
     };
@@ -150,6 +211,11 @@ async function handleLogin(e) {
     try {
         const user = await authLogin(email, password, isMock);
         currentUser = user;
+        
+        // Clear old active project session to prevent cross-user leakage
+        activeProject = null;
+        localStorage.removeItem("cineforge_active_project_id");
+        
         closeModal("login-modal");
         onUserAuthenticated();
         showToast("Logged in successfully!", "success");
@@ -168,6 +234,11 @@ async function handleRegister(e) {
     try {
         const user = await authSignup(name, email, password, isMock);
         currentUser = user;
+        
+        // Clear old active project session to prevent cross-user leakage
+        activeProject = null;
+        localStorage.removeItem("cineforge_active_project_id");
+        
         closeModal("register-modal");
         onUserAuthenticated();
         showToast("Account created successfully!", "success");
@@ -181,6 +252,11 @@ async function handleGoogleSignIn() {
     try {
         const user = await authGoogleSignIn(isMock);
         currentUser = user;
+        
+        // Clear old active project session to prevent cross-user leakage
+        activeProject = null;
+        localStorage.removeItem("cineforge_active_project_id");
+        
         closeModal("login-modal");
         onUserAuthenticated();
         showToast("Logged in with Google!", "success");
@@ -191,6 +267,8 @@ async function handleGoogleSignIn() {
 
 async function handleLogout() {
     await authLogout();
+    activeProject = null;
+    localStorage.removeItem("cineforge_active_project_id");
     showLandingPage();
     showToast("Logged out successfully.", "info");
 }
@@ -201,8 +279,9 @@ async function handleCreateProject(e) {
     const genre = document.getElementById("proj-genre").value;
     const target_audience = document.getElementById("proj-audience").value;
     const story_idea = document.getElementById("proj-idea").value;
+    const duration_length = document.getElementById("proj-duration").value;
 
-    const payload = { project_name, genre, target_audience, story_idea };
+    const payload = { project_name, genre, target_audience, story_idea, duration_length };
 
     try {
         const response = await api.createProject(payload);
@@ -212,12 +291,63 @@ async function handleCreateProject(e) {
         // Reset Form
         document.getElementById("create-project-form").reset();
         
-        // Set Active Project
-        loadProjectIntoSession(newProj.project_id);
+        // Show global generation overlay
+        const overlay = document.getElementById("global-gen-overlay");
+        overlay.classList.add("active");
         
-        showToast("New project initialized!", "success");
+        // Reset step classes
+        const steps = ["step-char", "step-story", "step-scenes", "step-script", "step-assets"];
+        steps.forEach(id => {
+            document.getElementById(id).className = "global-gen-step";
+        });
+        
+        // Step 1 active
+        document.getElementById("step-char").className = "global-gen-step active";
+        
+        // Timer to simulate stage steps while waiting for backend
+        const stepInterval = setInterval(() => {
+            const charEl = document.getElementById("step-char");
+            const storyEl = document.getElementById("step-story");
+            const scenesEl = document.getElementById("step-scenes");
+            const scriptEl = document.getElementById("step-script");
+            const assetsEl = document.getElementById("step-assets");
+            
+            if (charEl.classList.contains("active")) {
+                charEl.className = "global-gen-step completed";
+                storyEl.className = "global-gen-step active";
+            } else if (storyEl.classList.contains("active")) {
+                storyEl.className = "global-gen-step completed";
+                scenesEl.className = "global-gen-step active";
+            } else if (scenesEl.classList.contains("active")) {
+                scenesEl.className = "global-gen-step completed";
+                scriptEl.className = "global-gen-step active";
+            } else if (scriptEl.classList.contains("active")) {
+                scriptEl.className = "global-gen-step completed";
+                assetsEl.className = "global-gen-step active";
+            }
+        }, 3500);
+        
+        // Trigger all-in-one pre-production generator
+        await api.generateAllPreproduction(newProj.project_id);
+        
+        clearInterval(stepInterval);
+        
+        // Mark all steps completed
+        steps.forEach(id => {
+            document.getElementById(id).className = "global-gen-step completed";
+        });
+        
+        // Hold briefly to show completion
+        await new Promise(resolve => setTimeout(resolve, 800));
+        overlay.classList.remove("active");
+        
+        // Load the new project
+        await loadProjectIntoSession(newProj.project_id);
+        
+        showToast("New project pre-production package ready!", "success");
     } catch (err) {
-        showToast("Failed to initialize project: " + err.message, "error");
+        document.getElementById("global-gen-overlay").classList.remove("active");
+        showToast("Failed to initialize project pre-production package: " + err.message, "error");
     }
 }
 
@@ -228,7 +358,13 @@ async function loadProjectIntoSession(projectId, redirect = true) {
         const response = await api.getProject(projectId);
         const compiled = response.data;
         
+        // Safety verification: verify current user ownership
+        if (!currentUser || compiled.project.user_id !== currentUser.uid) {
+            throw new Error("Access denied: You do not own this project.");
+        }
+        
         activeProject = compiled.project;
+        activeProjectData = compiled; // Store the compiled data in cache
         localStorage.setItem("cineforge_active_project_id", projectId);
         
         updateActiveProjectBar(activeProject);
@@ -246,6 +382,7 @@ async function loadProjectIntoSession(projectId, redirect = true) {
         showToast("Failed to open project: " + err.message, "error");
         // Clear broken session key
         localStorage.removeItem("cineforge_active_project_id");
+        activeProject = null;
         updateActiveProjectBar(null);
         toggleRestrictedSidebarLinks(false);
     }
@@ -279,6 +416,7 @@ async function deleteProjectConfirm(projectId) {
             // If deleting the active project, clear workspace
             if (activeProject && activeProject.project_id === projectId) {
                 activeProject = null;
+                activeProjectData = null; // Clear cache
                 localStorage.removeItem("cineforge_active_project_id");
                 updateActiveProjectBar(null);
                 toggleRestrictedSidebarLinks(false);
@@ -301,6 +439,7 @@ async function triggerStoryAnalysis() {
     
     try {
         const response = await api.generateStoryAnalysis(activeProject.project_id);
+        if (activeProjectData) activeProjectData.story_analysis = response.data;
         renderStoryAnalysis(response.data);
         showToast("Story analysis completed!", "success");
     } catch (err) {
@@ -317,6 +456,7 @@ async function triggerNarrativeStructure() {
     
     try {
         const response = await api.generateNarrativeStructure(activeProject.project_id);
+        if (activeProjectData) activeProjectData.narrative_structure = response.data;
         renderNarrativeStructure(response.data);
         showToast("Narrative structure formulated!", "success");
     } catch (err) {
@@ -333,8 +473,16 @@ async function triggerScreenplay() {
     
     try {
         const response = await api.generateScreenplay(activeProject.project_id);
-        renderScreenplay(response.data);
-        showToast("Screenplay generated using IBM Granite!", "success");
+        if (!lastSceneBreakdown) {
+            const projRes = await api.getProject(activeProject.project_id);
+            lastSceneBreakdown = projRes.data.scene_breakdown;
+        }
+        if (activeProjectData) {
+            activeProjectData.screenplay = response.data;
+            activeProjectData.scene_breakdown = lastSceneBreakdown;
+        }
+        renderScreenplay(response.data, lastSceneBreakdown);
+        showToast("Screenplay generated successfully!", "success");
     } catch (err) {
         showToast("Screenplay generation failed: " + err.message, "error");
     } finally {
@@ -349,6 +497,7 @@ async function triggerCharacters() {
     
     try {
         const response = await api.generateCharacters(activeProject.project_id);
+        if (activeProjectData) activeProjectData.characters = response.data;
         renderCharacters(response.data);
         showToast("Characters designed successfully!", "success");
     } catch (err) {
@@ -365,6 +514,10 @@ async function triggerScenes() {
     
     try {
         const response = await api.generateScenes(activeProject.project_id);
+        if (activeProjectData) {
+            activeProjectData.scene_breakdown = response.data;
+        }
+        lastSceneBreakdown = response.data;
         renderScenes(response.data);
         showToast("Scene breakdown completed!", "success");
     } catch (err) {
@@ -381,6 +534,7 @@ async function triggerStoryboard() {
     
     try {
         const response = await api.generateStoryboard(activeProject.project_id);
+        if (activeProjectData) activeProjectData.storyboard = response.data;
         renderStoryboard(response.data);
         showToast("Storyboard prompts mapped!", "success");
     } catch (err) {
@@ -397,6 +551,7 @@ async function triggerSoundDesign() {
     
     try {
         const response = await api.generateSoundDesign(activeProject.project_id);
+        if (activeProjectData) activeProjectData.sound_design = response.data;
         renderSoundDesign(response.data);
         showToast("Auditory blueprint formatted!", "success");
     } catch (err) {
@@ -413,10 +568,28 @@ async function triggerProductionPlan() {
     
     try {
         const response = await api.generateProductionPlan(activeProject.project_id);
+        if (activeProjectData) activeProjectData.production_plan = response.data;
         renderProductionPlan(response.data);
         showToast("Production logistics planned!", "success");
     } catch (err) {
         showToast("Production plan failed: " + err.message, "error");
+    } finally {
+        loader.classList.remove("active");
+    }
+}
+
+async function triggerBudgetPlan() {
+    if (!activeProject) return;
+    const loader = document.getElementById("loader-budget");
+    loader.classList.add("active");
+    
+    try {
+        const response = await api.generateBudgetPlan(activeProject.project_id);
+        if (activeProjectData) activeProjectData.budget_plan = response.data;
+        renderBudgetPlan(response.data);
+        showToast("Budget plan estimated!", "success");
+    } catch (err) {
+        showToast("Budget planner failed: " + err.message, "error");
     } finally {
         loader.classList.remove("active");
     }
@@ -438,39 +611,47 @@ async function exportProjectFile(format) {
 
 async function loadViewSpecificData(viewId) {
     try {
-        // Fetch fresh project details containing all generated objects
-        const response = await api.getProject(activeProject.project_id);
-        const compiled = response.data;
-        
-        switch (viewId) {
-            case "dashboard":
-                renderProjectDashboardSummary(compiled);
-                break;
-            case "story":
-                renderStoryAnalysis(compiled.story_analysis);
-                renderNarrativeStructure(compiled.narrative_structure);
-                break;
-            case "screenplay":
-                renderScreenplay(compiled.screenplay);
-                break;
-            case "characters":
-                renderCharacters(compiled.characters);
-                break;
-            case "scenes":
-                renderScenes(compiled.scene_breakdown);
-                break;
-            case "storyboard":
-                renderStoryboard(compiled.storyboard);
-                break;
-            case "sound":
-                renderSoundDesign(compiled.sound_design);
-                break;
-            case "production":
-                renderProductionPlan(compiled.production_plan);
-                break;
+        if (!activeProjectData) {
+            // Fetch fresh project details containing all generated objects
+            const response = await api.getProject(activeProject.project_id);
+            activeProjectData = response.data;
         }
+        renderView(viewId, activeProjectData);
     } catch (err) {
         console.error(`Error loading data for ${viewId}:`, err);
+    }
+}
+
+function renderView(viewId, compiled) {
+    switch (viewId) {
+        case "dashboard":
+            renderProjectDashboardSummary(compiled);
+            break;
+        case "story":
+            renderStoryAnalysis(compiled.story_analysis);
+            renderNarrativeStructure(compiled.narrative_structure);
+            break;
+        case "screenplay":
+            renderScreenplay(compiled.screenplay, compiled.scene_breakdown);
+            break;
+        case "characters":
+            renderCharacters(compiled.characters);
+            break;
+        case "scenes":
+            renderScenes(compiled.scene_breakdown);
+            break;
+        case "storyboard":
+            renderStoryboard(compiled.storyboard);
+            break;
+        case "sound":
+            renderSoundDesign(compiled.sound_design);
+            break;
+        case "production":
+            renderProductionPlan(compiled.production_plan);
+            break;
+        case "budget":
+            renderBudgetPlan(compiled.budget_plan);
+            break;
     }
 }
 
@@ -507,7 +688,7 @@ function renderStoryAnalysis(analysis) {
         container.innerHTML = `
             <div class="screenplay-empty">
                 <i class="fa-solid fa-magnifying-glass-chart" style="font-size: 2.5rem; margin-bottom: 10px; color: var(--color-muted);"></i>
-                <p>Click Generate to analyze your story idea.</p>
+                <p>Story insights will be displayed here once loaded.</p>
             </div>`;
         return;
     }
@@ -515,12 +696,12 @@ function renderStoryAnalysis(analysis) {
     container.className = ""; // Remove centering wrapper class if needed
     container.innerHTML = `
         <div style="display: flex; flex-direction: column; gap: 1rem;">
-            <div><strong>Logline:</strong> <p>${analysis.logline}</p></div>
-            <div><strong>Tagline:</strong> <p style="font-style: italic; color: var(--accent-gold);">"${analysis.tagline}"</p></div>
-            <div><strong>Synopsis:</strong> <p style="font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap;">${analysis.synopsis}</p></div>
-            <div><strong>Genre Analysis:</strong> <p style="font-size: 0.9rem;">${analysis.genre_analysis}</p></div>
-            <div><strong>Theme:</strong> <p style="font-size: 0.9rem;">${analysis.theme}</p></div>
-            <div><strong>Audience Insights:</strong> <p style="font-size: 0.9rem;">${analysis.audience_insights}</p></div>
+            <div><strong>Logline:</strong> <div>${formatValue(analysis.logline)}</div></div>
+            <div><strong>Tagline:</strong> <div style="font-style: italic; color: var(--accent-gold);">"${formatValue(analysis.tagline)}"</div></div>
+            <div><strong>Synopsis:</strong> <div style="font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap;">${formatValue(analysis.synopsis)}</div></div>
+            <div><strong>Genre Analysis:</strong> <div style="font-size: 0.9rem;">${formatValue(analysis.genre_analysis)}</div></div>
+            <div><strong>Theme:</strong> <div style="font-size: 0.9rem;">${formatValue(analysis.theme)}</div></div>
+            <div><strong>Audience Insights:</strong> <div style="font-size: 0.9rem;">${formatValue(analysis.audience_insights)}</div></div>
         </div>
     `;
 }
@@ -531,7 +712,7 @@ function renderNarrativeStructure(structure) {
         container.innerHTML = `
             <div class="screenplay-empty">
                 <i class="fa-solid fa-shapes" style="font-size: 2.5rem; margin-bottom: 10px; color: var(--color-muted);"></i>
-                <p>Click Generate to create Act breakdowns.</p>
+                <p>3-Act narrative structure will be displayed here once loaded.</p>
             </div>`;
         return;
     }
@@ -557,19 +738,91 @@ function renderNarrativeStructure(structure) {
     container.innerHTML = html;
 }
 
-function renderScreenplay(screenplay) {
+
+function onScreenplaySceneChanged() {
+    const select = document.getElementById("screenplay-scene-select");
+    const selectedValue = parseInt(select.value, 10);
+    
+    if (selectedValue === -1) {
+        if (lastScreenplayDoc && lastScreenplayDoc.screenplay_text) {
+            renderScreenplayText(lastScreenplayDoc.screenplay_text);
+        } else {
+            document.getElementById("screenplay-paper").innerHTML = `
+                <div class="screenplay-empty">
+                    <i class="fa-solid fa-scroll" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                    <p>The screenplay script will be displayed here once loaded.</p>
+                </div>`;
+        }
+    } else {
+        renderSelectedSceneView(selectedValue);
+    }
+}
+
+function renderScreenplay(screenplay, sceneBreakdown) {
     const paper = document.getElementById("screenplay-paper");
-    if (!screenplay || !screenplay.screenplay_text) {
+    lastScreenplayDoc = screenplay;
+    lastSceneBreakdown = sceneBreakdown;
+    
+    const selectWrapper = document.getElementById("screenplay-scene-select-wrapper");
+    const select = document.getElementById("screenplay-scene-select");
+    
+    if (!sceneBreakdown || !sceneBreakdown.scenes || sceneBreakdown.scenes.length === 0) {
+        selectWrapper.style.display = "none";
         paper.innerHTML = `
             <div class="screenplay-empty">
-                <i class="fa-solid fa-scroll" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
-                <p>No script generated yet. Click "Generate Script" to formulate screenplay using IBM Granite AI.</p>
+                <i class="fa-solid fa-list-check" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                <p>No Scene Breakdown found. Please generate the <strong>Scene Breakdown</strong> first to formulate the screenplay.</p>
+                <button class="btn btn-gold" onclick="switchSubview('scenes')" style="margin-top: 15px;">
+                    <i class="fa-solid fa-arrow-right"></i> Go to Scene Breakdown
+                </button>
             </div>`;
         return;
     }
     
-    // Parse plaintext into nicely aligned standard margins
-    const lines = screenplay.screenplay_text.split("\n");
+    // Save current selected value if any
+    const prevSelected = select.value ? parseInt(select.value, 10) : -1;
+    
+    // Populate select
+    select.innerHTML = `<option value="-1" style="color: #111111 !important; background-color: #ffffff !important;">Show Full Script</option>`;
+    sceneBreakdown.scenes.forEach((scene) => {
+        select.innerHTML += `<option value="${scene.scene_number}" style="color: #111111 !important; background-color: #ffffff !important;">Scene ${scene.scene_number}: ${cleanLocationForDisplay(scene.location)}</option>`;
+    });
+    selectWrapper.style.display = "block";
+    
+    // Restore selection if it still exists
+    if (prevSelected !== -1 && sceneBreakdown.scenes.some(s => parseInt(s.scene_number, 10) === prevSelected)) {
+        select.value = prevSelected;
+    } else {
+        select.value = "-1";
+    }
+    
+    const selectedValue = parseInt(select.value, 10);
+    if (selectedValue === -1) {
+        if (screenplay && screenplay.screenplay_text) {
+            renderScreenplayText(screenplay.screenplay_text);
+        } else {
+            paper.innerHTML = `
+                <div class="screenplay-empty">
+                    <i class="fa-solid fa-scroll" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                    <p>The screenplay script will be displayed here once loaded.</p>
+                </div>`;
+        }
+    } else {
+        renderSelectedSceneView(selectedValue);
+    }
+}
+
+function renderScreenplayText(text) {
+    const paper = document.getElementById("screenplay-paper");
+    if (!text) {
+        paper.innerHTML = `
+            <div class="screenplay-empty">
+                <i class="fa-solid fa-scroll" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                <p>The screenplay script will be displayed here once loaded.</p>
+            </div>`;
+        return;
+    }
+    const lines = text.split("\n");
     let formattedHtml = "";
     
     lines.forEach(line => {
@@ -584,7 +837,7 @@ function renderScreenplay(screenplay) {
             formattedHtml += `<div style="font-weight: bold; margin-top: 1rem; text-transform: uppercase;">${stripped}</div>`;
         }
         // Match Character names (caps, relatively short, not scene heading)
-        else if (stripped === stripped.toUpperCase() && stripped.length < 25 && !stripped.includes("FADE IN") && !stripped.includes("FADE OUT")) {
+        else if (stripped === stripped.toUpperCase() && stripped.length < 25 && !stripped.includes("FADE IN") && !stripped.includes("FADE OUT") && !stripped.includes("CUT TO")) {
             formattedHtml += `<div style="text-align: center; margin-top: 0.75rem; font-weight: bold; letter-spacing: 0.5px;">${stripped}</div>`;
         }
         // Match Parenthetical notes
@@ -604,13 +857,106 @@ function renderScreenplay(screenplay) {
     paper.innerHTML = `<div style="padding: 2rem 0;">${formattedHtml}</div>`;
 }
 
+function renderSelectedSceneView(sceneNumber) {
+    const paper = document.getElementById("screenplay-paper");
+    if (!lastSceneBreakdown || !lastSceneBreakdown.scenes) return;
+    
+    const sceneInfo = lastSceneBreakdown.scenes.find(s => parseInt(s.scene_number, 10) === sceneNumber);
+    const sceneLocation = sceneInfo ? sceneInfo.location : `Scene ${sceneNumber}`;
+    const sceneObjective = sceneInfo ? sceneInfo.objective : "No objective specified.";
+    const sceneCharacters = sceneInfo ? sceneInfo.characters : "N/A";
+    const sceneDuration = sceneInfo ? sceneInfo.duration : "2 mins";
+    
+    let sceneScript = "";
+    if (lastScreenplayDoc && lastScreenplayDoc.scene_scripts) {
+        sceneScript = lastScreenplayDoc.scene_scripts[String(sceneNumber)] || "";
+    }
+    
+    if (sceneScript) {
+        const lines = sceneScript.split("\n");
+        let formattedHtml = "";
+        
+        lines.forEach(line => {
+            const stripped = line.trim();
+            if (!stripped) {
+                formattedHtml += "<br/>";
+                return;
+            }
+            if (stripped.startsWith("INT.") || stripped.startsWith("EXT.")) {
+                formattedHtml += `<div style="font-weight: bold; margin-top: 1rem; text-transform: uppercase;">${stripped}</div>`;
+            } else if (stripped === stripped.toUpperCase() && stripped.length < 25 && !stripped.includes("FADE IN") && !stripped.includes("FADE OUT") && !stripped.includes("CUT TO")) {
+                formattedHtml += `<div style="text-align: center; margin-top: 0.75rem; font-weight: bold; letter-spacing: 0.5px;">${stripped}</div>`;
+            } else if (stripped.startsWith("(")) {
+                formattedHtml += `<div style="padding-left: 25%; padding-right: 25%; font-style: italic; font-size: 0.95em;">${stripped}</div>`;
+            } else if (line.startsWith("          ") || line.startsWith("\t\t")) {
+                formattedHtml += `<div style="padding-left: 20%; padding-right: 20%;">${stripped}</div>`;
+            } else {
+                formattedHtml += `<div style="margin-top: 0.5rem; text-align: left;">${stripped}</div>`;
+            }
+        });
+        
+        paper.innerHTML = `
+            <div style="border-bottom: 1px solid var(--border-accent); padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h4 style="margin: 0; color: var(--accent-gold);">Scene ${sceneNumber} Script</h4>
+                    <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-muted); font-style: italic;">Objective: ${sceneObjective}</p>
+                </div>
+                <button class="btn btn-sm btn-gold" onclick="generateSceneScript(${sceneNumber})">
+                    <i class="fa-solid fa-rotate"></i> Regenerate Scene
+                </button>
+            </div>
+            <div style="padding: 1rem 0;">${formattedHtml}</div>
+        `;
+    } else {
+        paper.innerHTML = `
+            <div class="screenplay-empty" style="padding: 4rem 2rem;">
+                <i class="fa-solid fa-clapperboard" style="font-size: 3rem; margin-bottom: 15px; color: var(--accent-gold);"></i>
+                <h3>Scene ${sceneNumber}: ${cleanLocationForDisplay(sceneLocation)}</h3>
+                <p style="color: var(--color-muted); max-width: 500px; margin: 10px auto; line-height: 1.6;">
+                    <strong>Characters:</strong> ${sceneCharacters}<br>
+                    <strong>Objective:</strong> ${sceneObjective}<br>
+                    <strong>Estimated Duration:</strong> ${sceneDuration}
+                </p>
+                <button class="btn btn-gold" onclick="generateSceneScript(${sceneNumber})" style="margin-top: 15px;">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Script for this Scene
+                </button>
+            </div>
+        `;
+    }
+}
+
+async function generateSceneScript(sceneNumber) {
+    if (!activeProject) return;
+    const loader = document.getElementById("loader-screenplay");
+    loader.classList.add("active");
+    
+    try {
+        const response = await api._request("/generate-screenplay", "POST", {
+            project_id: activeProject.project_id,
+            scene_number: sceneNumber
+        });
+        
+        lastScreenplayDoc = response.data;
+        if (activeProjectData) {
+            activeProjectData.screenplay = response.data;
+        }
+        showToast(`Scene ${sceneNumber} screenplay script generated successfully!`, "success");
+        renderScreenplay(lastScreenplayDoc, lastSceneBreakdown);
+    } catch (err) {
+        showToast(`Scene generation failed: ` + err.message, "error");
+    } finally {
+        loader.classList.remove("active");
+    }
+}
+
+
 function renderCharacters(charDoc) {
     const container = document.getElementById("characters-container");
     if (!charDoc || !charDoc.characters || charDoc.characters.length === 0) {
         container.innerHTML = `
             <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
                 <i class="fa-solid fa-users" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
-                <p>Click Generate to design characters for this project.</p>
+                <p>Character profiles will be displayed here once loaded.</p>
             </div>`;
         return;
     }
@@ -633,13 +979,20 @@ function renderCharacters(charDoc) {
     });
 }
 
+function cleanLocationForDisplay(location) {
+    if (!location) return "";
+    let clean = location.replace(/^(INT\.\s*|EXT\.\s*|INT\/EXT\.\s*|INT\s+|EXT\s+)/i, "").trim();
+    clean = clean.replace(/\s*-\s*(DAY|NIGHT|DUSK|DAWN|LATER|CONTINUOUS|SAME TIME)\b.*$/i, "").trim();
+    return clean;
+}
+
 function renderScenes(sceneDoc) {
     const container = document.getElementById("scenes-container");
     if (!sceneDoc || !sceneDoc.scenes || sceneDoc.scenes.length === 0) {
         container.innerHTML = `
             <div class="info-card text-center" style="padding: 4rem;">
                 <i class="fa-solid fa-list-check" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
-                <p>Click Breakdown Scenes to dissect the story idea.</p>
+                <p>Scene breakdowns will be displayed here once loaded.</p>
             </div>`;
         return;
     }
@@ -662,7 +1015,7 @@ function renderScenes(sceneDoc) {
         tableHtml += `
             <tr>
                 <td><strong>#${scene.scene_number}</strong></td>
-                <td style="font-family: var(--font-script); color: var(--accent-gold); font-size: 0.85rem;">${scene.location}</td>
+                <td style="font-family: var(--font-body); color: var(--accent-gold); font-size: 0.9rem; text-transform: uppercase;">${cleanLocationForDisplay(scene.location)}</td>
                 <td>${scene.characters}</td>
                 <td>${scene.objective}</td>
                 <td><span class="badge" style="margin: 0; font-size: 0.75rem;">${scene.duration}</span></td>
@@ -678,63 +1031,155 @@ function renderScenes(sceneDoc) {
     container.innerHTML = tableHtml;
 }
 
+function setStoryboardViewMode(mode) {
+    storyboardViewMode = mode;
+    
+    const btnGrid = document.getElementById("btn-sb-grid");
+    const btnCarousel = document.getElementById("btn-sb-carousel");
+    
+    if (mode === "grid") {
+        btnGrid.classList.add("active");
+        btnGrid.style.background = "";
+        btnGrid.style.borderColor = "";
+        btnCarousel.classList.remove("active");
+        btnCarousel.style.background = "transparent";
+        btnCarousel.style.borderColor = "transparent";
+    } else {
+        btnCarousel.classList.add("active");
+        btnCarousel.style.background = "";
+        btnCarousel.style.borderColor = "";
+        btnGrid.classList.remove("active");
+        btnGrid.style.background = "transparent";
+        btnGrid.style.borderColor = "transparent";
+    }
+    
+    renderStoryboard(currentStoryboardDoc);
+}
+
+function storyboardNextSlide() {
+    if (!currentStoryboardDoc || !currentStoryboardDoc.storyboards) return;
+    const len = currentStoryboardDoc.storyboards.length;
+    currentStoryboardSlideIndex = (currentStoryboardSlideIndex + 1) % len;
+    renderStoryboard(currentStoryboardDoc);
+}
+
+function storyboardPrevSlide() {
+    if (!currentStoryboardDoc || !currentStoryboardDoc.storyboards) return;
+    const len = currentStoryboardDoc.storyboards.length;
+    currentStoryboardSlideIndex = (currentStoryboardSlideIndex - 1 + len) % len;
+    renderStoryboard(currentStoryboardDoc);
+}
+
+function setStoryboardSlide(idx) {
+    if (!currentStoryboardDoc || !currentStoryboardDoc.storyboards) return;
+    currentStoryboardSlideIndex = idx;
+    renderStoryboard(currentStoryboardDoc);
+}
+
 function renderStoryboard(sbDoc) {
     const container = document.getElementById("storyboard-container");
+    currentStoryboardDoc = sbDoc;
+    
     if (!sbDoc || !sbDoc.storyboards || sbDoc.storyboards.length === 0) {
+        container.className = "storyboard-grid-no-images";
         container.innerHTML = `
             <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
-                <i class="fa-solid fa-images" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
-                <p>Click Generate to compile scene prompt boards.</p>
+                <i class="fa-solid fa-clapperboard" style="font-size: 3rem; margin-bottom: 15px; color: var(--accent-gold);"></i>
+                <p>Cinematography prompts and shot configurations will be displayed here once loaded.</p>
             </div>`;
         return;
     }
     
-    container.innerHTML = "";
-    sbDoc.storyboards.forEach(sb => {
-        const card = document.createElement("div");
-        card.className = "storyboard-card";
+    if (storyboardViewMode === "grid") {
+        container.className = "storyboard-grid-no-images";
+        container.innerHTML = "";
+        sbDoc.storyboards.forEach(sb => {
+            const card = document.createElement("div");
+            card.className = "storyboard-card-no-image";
+            
+            card.innerHTML = `
+                <div class="storyboard-card-header">
+                    <span class="storyboard-card-title">Shot #${sb.scene_number}</span>
+                    <i class="fa-solid fa-video" style="color: var(--color-muted); font-size: 0.9rem;"></i>
+                </div>
+                <div class="storyboard-card-body">
+                    <p class="storyboard-card-prompt-text">"${sb.prompt || 'No composition instructions available.'}"</p>
+                </div>
+                <div class="storyboard-card-directives">
+                    <div class="directive-chip-horizontal">
+                        <i class="fa-solid fa-arrows-to-eye"></i>
+                        <span>Angle: <strong>${sb.camera_angle || 'N/A'}</strong></span>
+                    </div>
+                    <div class="directive-chip-horizontal">
+                        <i class="fa-solid fa-lightbulb"></i>
+                        <span>Lighting: <strong>${sb.lighting || 'N/A'}</strong></span>
+                    </div>
+                    <div class="directive-chip-horizontal">
+                        <i class="fa-solid fa-masks-theater"></i>
+                        <span>Mood: <strong>${sb.mood || 'N/A'}</strong></span>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    } else {
+        container.className = "";
         
-        // Truncate prompt for image generator
-        const safePrompt = (sb.prompt || "").replace(/["']/g, "").substring(0, 150).trim();
-        const primaryImageUrl = `https://image.pollinations.ai/p/${encodeURIComponent(safePrompt)}?width=600&height=400&nologo=true`;
-
-        // Collection of premium movie-themed Unsplash images for instant fallback
-        const fallbackStockImages = [
-            "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=600&q=80", // Film slate / Director set
-            "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80", // Moody office / Detective light
-            "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=600&q=80", // Film reel glowing
-            "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80", // Dramatic silhouette / Noir
-            "https://images.unsplash.com/photo-1505686994434-e3cc5abf1330?auto=format&fit=crop&w=600&q=80", // Camera lens / Cinema projector
-            "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=600&q=80"  // Vintage theater hall
-        ];
-        const backupUrl = fallbackStockImages[(sb.scene_number - 1) % fallbackStockImages.length];
-
-        card.innerHTML = `
-            <div class="storyboard-frame" style="height: 200px; position: relative; background: #08080c; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                <!-- Spinning film reel while image is generating -->
-                <div class="film-reel-loader" style="position: absolute; transform: scale(0.6);"></div>
-                <img src="${primaryImageUrl}" 
-                     alt="Storyboard Scene #${sb.scene_number}" 
-                     style="width: 100%; height: 100%; object-fit: cover; z-index: 1; opacity: 0; transition: opacity 0.5s;"
-                     onload="this.style.opacity='1'; this.previousElementSibling.remove();"
-                     onerror="this.onerror=null; this.src='${backupUrl}'; this.previousElementSibling.remove(); this.style.opacity='1';">
-            </div>
-            <div class="storyboard-info">
-                <div class="storyboard-scene-num">Scene #${sb.scene_number}</div>
-                <div class="storyboard-prompt">"${sb.prompt}"</div>
-                <div class="storyboard-meta-tag">
-                    <span>Angle: <strong>${sb.camera_angle}</strong></span>
+        if (currentStoryboardSlideIndex < 0) currentStoryboardSlideIndex = 0;
+        if (currentStoryboardSlideIndex >= sbDoc.storyboards.length) currentStoryboardSlideIndex = sbDoc.storyboards.length - 1;
+        
+        const sb = sbDoc.storyboards[currentStoryboardSlideIndex];
+        
+        let dotsHtml = "";
+        sbDoc.storyboards.forEach((_, idx) => {
+            dotsHtml += `<div class="presenter-indicator-dot ${idx === currentStoryboardSlideIndex ? 'active' : ''}" onclick="setStoryboardSlide(${idx})"></div>`;
+        });
+        
+        container.innerHTML = `
+            <div class="storyboard-presenter-container">
+                <div class="presenter-card-wrapper">
+                    <button class="presenter-nav-btn prev" onclick="storyboardPrevSlide()">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    
+                    <div class="presenter-card-main">
+                        <div class="presenter-card-header">
+                            <span class="presenter-card-title">SHOT ${currentStoryboardSlideIndex + 1} OF ${sbDoc.storyboards.length}</span>
+                            <span class="badge" style="background-color: rgba(212, 175, 55, 0.12); color: var(--accent-gold); border-color: var(--accent-gold); font-size: 0.8rem; border-radius: 4px; padding: 3px 8px;">Scene #${sb.scene_number}</span>
+                        </div>
+                        <div class="presenter-card-prompt">
+                            "${sb.prompt || 'No composition instructions available.'}"
+                        </div>
+                        <div class="presenter-directives-grid">
+                            <div class="presenter-directive-item">
+                                <i class="fa-solid fa-arrows-to-eye"></i>
+                                <span>Camera Angle</span>
+                                <strong>${sb.camera_angle || 'N/A'}</strong>
+                            </div>
+                            <div class="presenter-directive-item">
+                                <i class="fa-solid fa-lightbulb"></i>
+                                <span>Lighting Setup</span>
+                                <strong>${sb.lighting || 'N/A'}</strong>
+                            </div>
+                            <div class="presenter-directive-item">
+                                <i class="fa-solid fa-masks-theater"></i>
+                                <span>Shot Atmosphere</span>
+                                <strong>${sb.mood || 'N/A'}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="presenter-nav-btn next" onclick="storyboardNextSlide()">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
                 </div>
-                <div class="storyboard-meta-tag" style="border-top: none; padding-top: 0;">
-                    <span>Lighting: <strong>${sb.lighting}</strong></span>
-                </div>
-                <div class="storyboard-meta-tag" style="border-top: none; padding-top: 0;">
-                    <span>Mood: <strong>${sb.mood}</strong></span>
+                
+                <div class="presenter-indicators-wrapper">
+                    ${dotsHtml}
                 </div>
             </div>
         `;
-        container.appendChild(card);
-    });
+    }
 }
 
 function renderSoundDesign(soundDoc) {
@@ -743,7 +1188,7 @@ function renderSoundDesign(soundDoc) {
         container.innerHTML = `
             <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
                 <i class="fa-solid fa-volume-high" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
-                <p>Click Generate to orchestrate audio design using IBM Granite AI.</p>
+                <p>Sound design plan will be displayed here once loaded.</p>
             </div>`;
         return;
     }
@@ -751,23 +1196,23 @@ function renderSoundDesign(soundDoc) {
     container.innerHTML = `
         <div class="info-card">
             <h3>Background Soundtrack / Music</h3>
-            <p>${soundDoc.background_music}</p>
+            <div>${formatValue(soundDoc.background_music)}</div>
         </div>
         <div class="info-card">
             <h3>Ambient Environments</h3>
-            <p>${soundDoc.ambience}</p>
+            <div>${formatValue(soundDoc.ambience)}</div>
         </div>
         <div class="info-card">
             <h3>Foley Sounds Checklist</h3>
-            <p>${soundDoc.foley_effects}</p>
+            <div>${formatValue(soundDoc.foley_effects)}</div>
         </div>
         <div class="info-card">
             <h3>Vocal Dialogues Treatment</h3>
-            <p>${soundDoc.dialogue_treatment}</p>
+            <div>${formatValue(soundDoc.dialogue_treatment)}</div>
         </div>
         <div class="info-card" style="grid-column: 1 / -1;">
             <h3>Sound Cue Audio Notes</h3>
-            <p style="white-space: pre-line;">${soundDoc.scene_sound_notes}</p>
+            <div style="white-space: pre-line;">${formatValue(soundDoc.scene_sound_notes)}</div>
         </div>
     `;
 }
@@ -778,7 +1223,7 @@ function renderProductionPlan(prodDoc) {
         container.innerHTML = `
             <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
                 <i class="fa-solid fa-calendar-days" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
-                <p>Click Generate to compile physical logistics plan using IBM Granite AI.</p>
+                <p>Production plan will be displayed here once loaded.</p>
             </div>`;
         return;
     }
@@ -786,23 +1231,65 @@ function renderProductionPlan(prodDoc) {
     container.innerHTML = `
         <div class="info-card">
             <h3>Shooting Locations Map</h3>
-            <p>${prodDoc.shooting_locations}</p>
+            <div>${formatValue(prodDoc.shooting_locations)}</div>
         </div>
         <div class="info-card">
             <h3>Critical Props Checklist</h3>
-            <p>${prodDoc.required_props}</p>
+            <div>${formatValue(prodDoc.required_props)}</div>
         </div>
         <div class="info-card">
             <h3>Camera & Lighting Gear</h3>
-            <p>${prodDoc.equipment}</p>
+            <div>${formatValue(prodDoc.equipment)}</div>
         </div>
         <div class="info-card">
             <h3>Key Crew Roles Required</h3>
-            <p>${prodDoc.crew_suggestions}</p>
+            <div>${formatValue(prodDoc.crew_suggestions)}</div>
         </div>
         <div class="info-card" style="grid-column: 1 / -1; border-color: var(--accent-gold);">
             <h3 style="color: var(--accent-gold); border-left-color: var(--accent-gold);">Estimated Shoot Days</h3>
-            <p style="font-size: 1.2rem; font-weight: 700; color: #fff;">${prodDoc.estimated_shoot_days}</p>
+            <div style="font-size: 1.2rem; font-weight: 700; color: #fff;">${formatValue(prodDoc.estimated_shoot_days)}</div>
+        </div>
+    `;
+}
+
+function renderBudgetPlan(budgetDoc) {
+    const container = document.getElementById("budget-container");
+    if (!budgetDoc || !budgetDoc.pre_production) {
+        container.innerHTML = `
+            <div class="info-card text-center" style="grid-column: 1 / -1; padding: 4rem;">
+                <i class="fa-solid fa-calculator" style="font-size: 3rem; margin-bottom: 15px; color: var(--color-muted);"></i>
+                <p>Budget plan will be displayed here once loaded.</p>
+            </div>`;
+        return;
+    }
+    
+    const pre = budgetDoc.pre_production || {};
+    const prod = budgetDoc.production || {};
+    const post = budgetDoc.post_production || {};
+    
+    container.innerHTML = `
+        <div class="info-card" style="border-left: 4px solid var(--accent-purple);">
+            <h3 style="color: var(--accent-purple); border-left: none; padding-left: 0;"><i class="fa-solid fa-compass"></i> Pre-Production Phase</h3>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #fff; margin-bottom: 10px;">${pre.cost || "N/A"}</div>
+            <p style="font-size: 0.9rem; color: var(--color-secondary); line-height: 1.5;">${pre.details || "N/A"}</p>
+        </div>
+        <div class="info-card" style="border-left: 4px solid var(--accent-gold-hover);">
+            <h3 style="color: var(--accent-gold-hover); border-left: none; padding-left: 0;"><i class="fa-solid fa-video"></i> Filming / Production Phase</h3>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #fff; margin-bottom: 10px;">${prod.cost || "N/A"}</div>
+            <p style="font-size: 0.9rem; color: var(--color-secondary); line-height: 1.5;">${prod.details || "N/A"}</p>
+        </div>
+        <div class="info-card" style="border-left: 4px solid #FFF3B0;">
+            <h3 style="color: #FFF3B0; border-left: none; padding-left: 0;"><i class="fa-solid fa-scissors"></i> Post-Production Phase</h3>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #fff; margin-bottom: 10px;">${post.cost || "N/A"}</div>
+            <p style="font-size: 0.9rem; color: var(--color-secondary); line-height: 1.5;">${post.details || "N/A"}</p>
+        </div>
+        <div class="info-card" style="grid-column: 1 / -1; border-color: var(--accent-gold); background: rgba(230, 161, 0, 0.05);">
+            <h3 style="color: var(--accent-gold); border-left-color: var(--accent-gold);"><i class="fa-solid fa-vault"></i> Estimated Total Budget</h3>
+            <p style="font-size: 1.8rem; font-weight: 800; color: #fff; margin: 10px 0;">${budgetDoc.total_budget || "N/A"}</p>
+        </div>
+        <div class="info-card" style="grid-column: 1 / -1; border-color: var(--accent-purple); background: rgba(212, 175, 55, 0.05);">
+            <h3 style="color: var(--accent-purple); border-left-color: var(--accent-purple);"><i class="fa-solid fa-lightbulb"></i> Cost-Saving Strategies</h3>
+            <p style="font-size: 0.95rem; color: var(--color-secondary); line-height: 1.6; white-space: pre-line;">${budgetDoc.cost_saving_tips || "N/A"}</p>
         </div>
     `;
 }
