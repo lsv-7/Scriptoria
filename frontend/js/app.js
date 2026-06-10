@@ -1171,7 +1171,7 @@ function renderStoryboard(sbDoc) {
                     <div class="presenter-card-main">
                         <div class="presenter-card-header">
                             <span class="presenter-card-title">SHOT ${currentStoryboardSlideIndex + 1} OF ${sbDoc.storyboards.length}</span>
-                            <span class="badge" style="background-color: rgba(212, 175, 55, 0.12); color: var(--accent-gold); border-color: var(--accent-gold); font-size: 0.8rem; border-radius: 4px; padding: 3px 8px;">Scene #${sb.scene_number}</span>
+                            <span class="badge" style="background-color: rgba(229, 9, 20, 0.12); color: var(--accent-gold); border-color: var(--accent-gold); font-size: 0.8rem; border-radius: 4px; padding: 3px 8px;">Scene #${sb.scene_number}</span>
                         </div>
                         <div class="presenter-card-prompt">
                             "${sb.prompt || 'No composition instructions available.'}"
@@ -1304,16 +1304,16 @@ function renderBudgetPlan(budgetDoc) {
             <div style="font-size: 1.5rem; font-weight: 700; color: #fff; margin-bottom: 10px;">${prod.cost || "N/A"}</div>
             <p style="font-size: 0.9rem; color: var(--color-secondary); line-height: 1.5;">${prod.details || "N/A"}</p>
         </div>
-        <div class="info-card" style="border-left: 4px solid #FFF3B0;">
-            <h3 style="color: #FFF3B0; border-left: none; padding-left: 0;"><i class="fa-solid fa-scissors"></i> Post-Production Phase</h3>
+        <div class="info-card" style="border-left: 4px solid var(--color-secondary);">
+            <h3 style="color: var(--color-secondary); border-left: none; padding-left: 0;"><i class="fa-solid fa-scissors"></i> Post-Production Phase</h3>
             <div style="font-size: 1.5rem; font-weight: 700; color: #fff; margin-bottom: 10px;">${post.cost || "N/A"}</div>
             <p style="font-size: 0.9rem; color: var(--color-secondary); line-height: 1.5;">${post.details || "N/A"}</p>
         </div>
-        <div class="info-card" style="grid-column: 1 / -1; border-color: var(--accent-gold); background: rgba(230, 161, 0, 0.05);">
+        <div class="info-card" style="grid-column: 1 / -1; border-color: var(--accent-gold); background: rgba(229, 9, 20, 0.05);">
             <h3 style="color: var(--accent-gold); border-left-color: var(--accent-gold);"><i class="fa-solid fa-vault"></i> Estimated Total Budget</h3>
             <p style="font-size: 1.8rem; font-weight: 800; color: #fff; margin: 10px 0;">${budgetDoc.total_budget || "N/A"}</p>
         </div>
-        <div class="info-card" style="grid-column: 1 / -1; border-color: var(--accent-purple); background: rgba(212, 175, 55, 0.05);">
+        <div class="info-card" style="grid-column: 1 / -1; border-color: var(--accent-purple); background: rgba(229, 9, 20, 0.05);">
             <h3 style="color: var(--accent-purple); border-left-color: var(--accent-purple);"><i class="fa-solid fa-lightbulb"></i> Cost-Saving Strategies</h3>
             <p style="font-size: 0.95rem; color: var(--color-secondary); line-height: 1.6; white-space: pre-line;">${budgetDoc.cost_saving_tips || "N/A"}</p>
         </div>

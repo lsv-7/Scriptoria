@@ -1,26 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Courier+Prime&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Courier+Prime&display=swap');
 
 :root {
-    --bg-primary: #0A0A0A;
-    --bg-secondary: #111111;
-    --bg-tertiary: #171717;
+    --bg-primary: #141414; /* Netflix black */
+    --bg-secondary: #181818; /* Netflix dark grey */
+    --bg-tertiary: #202020; /* Netflix medium grey */
     --border-color: rgba(255, 255, 255, 0.08);
-    --border-accent: rgba(212, 175, 55, 0.25);
+    --border-accent: rgba(229, 9, 20, 0.3);
     
     --color-primary: #FFFFFF;
-    --color-secondary: #BDBDBD;
-    --color-muted: #888888;
+    --color-secondary: #E5E5E5; /* Netflix body text */
+    --color-muted: #808080; /* Netflix muted text */
     
-    --accent-purple: #D4AF37;
-    --accent-purple-glow: rgba(212, 175, 55, 0.35);
-    --accent-purple-dark: #b8962f;
+    --accent-purple: #E50914; /* Netflix Brand Red */
+    --accent-purple-glow: rgba(229, 9, 20, 0.25);
+    --accent-purple-dark: #B20710;
     
-    --accent-gold: #D4AF37;
-    --accent-gold-hover: #F5C542;
-    --accent-gold-glow: rgba(212, 175, 55, 0.2);
+    --accent-gold: #E50914; /* Netflix Brand Red */
+    --accent-gold-hover: #F40612; /* Netflix Hover Red */
+    --accent-gold-glow: rgba(229, 9, 20, 0.15);
     
-    --success: #00e676;
-    --error: #ff1744;
+    --success: #46d369; /* Netflix match green */
+    --error: #E50914; /* Netflix error red */
     
     --font-heading: 'Outfit', sans-serif;
     --font-body: 'Segoe UI', 'Inter', sans-serif;
@@ -28,8 +28,8 @@
     
     --sidebar-width: 260px;
     --header-height: 70px;
-    --card-radius: 12px;
-    --transition-speed: 0.3s;
+    --card-radius: 6px; /* Netflix clean corners */
+    --transition-speed: 0.25s;
 }
 
 * {
@@ -75,8 +75,8 @@ h1, h2, h3, h4, h5, h6 {
     display: flex;
     flex-direction: column;
     position: relative;
-    background: radial-gradient(circle at 80% 20%, rgba(212, 175, 55, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 10% 80%, rgba(212, 175, 55, 0.05) 0%, transparent 40%);
+    background: radial-gradient(circle at 80% 20%, rgba(229, 9, 20, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 10% 80%, rgba(229, 9, 20, 0.05) 0%, transparent 40%);
 }
 
 .landing-header {
@@ -99,7 +99,8 @@ h1, h2, h3, h4, h5, h6 {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-family: var(--font-heading);
+    font-family: 'Bebas Neue', var(--font-heading);
+    letter-spacing: 2px;
     font-size: 1.6rem;
     font-weight: 800;
     color: #fff;
@@ -169,7 +170,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-gold {
     background-color: var(--accent-gold);
-    color: #08080c;
+    color: #ffffff;
     border: 1px solid var(--accent-gold);
     box-shadow: 0 4px 14px var(--accent-gold-glow);
 }
@@ -205,7 +206,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .badge {
-    background: rgba(212, 175, 55, 0.12);
+    background: rgba(229, 9, 20, 0.12);
     border: 1px solid var(--border-accent);
     color: var(--accent-purple);
     padding: 0.4rem 1rem;
@@ -218,8 +219,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .hero-title {
-    font-size: 4rem;
-    line-height: 1.1;
+    font-family: 'Bebas Neue', var(--font-heading);
+    font-size: 4.5rem;
+    line-height: 1.0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
     font-weight: 800;
     margin-bottom: 1.5rem;
     background: linear-gradient(to right, #ffffff, var(--color-secondary));
@@ -285,14 +289,14 @@ h1, h2, h3, h4, h5, h6 {
 .feature-card:hover {
     transform: translateY(-5px);
     border-color: var(--accent-purple);
-    box-shadow: 0 10px 30px rgba(212, 175, 55, 0.08);
+    box-shadow: 0 10px 30px rgba(229, 9, 20, 0.08);
 }
 
 .feature-icon {
     width: 50px;
     height: 50px;
     border-radius: 10px;
-    background: rgba(212, 175, 55, 0.12);
+    background: rgba(229, 9, 20, 0.12);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -379,7 +383,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .sidebar-link:hover, .sidebar-link.active {
     color: #fff;
-    background-color: rgba(212, 175, 55, 0.12);
+    background-color: rgba(229, 9, 20, 0.12);
 }
 
 .sidebar-link.active {
@@ -573,7 +577,7 @@ h1, h2, h3, h4, h5, h6 {
 .form-control:focus {
     outline: none;
     border-color: var(--accent-purple);
-    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25);
+    box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.25);
 }
 
 textarea.form-control {
@@ -585,7 +589,7 @@ textarea.form-control {
 
 /* Welcome Banner */
 .welcome-banner {
-    background: linear-gradient(135deg, var(--bg-tertiary), rgba(212, 175, 55, 0.15)),
+    background: linear-gradient(135deg, var(--bg-tertiary), rgba(229, 9, 20, 0.15)),
                 radial-gradient(circle at 100% 0%, var(--accent-gold-glow) 0%, transparent 60%);
     border: 1px solid var(--border-accent);
     border-radius: var(--card-radius);
@@ -1310,8 +1314,8 @@ select option {
 }
 
 .directive-chip-horizontal:hover {
-    background: rgba(212, 175, 55, 0.05);
-    border-color: rgba(212, 175, 55, 0.3);
+    background: rgba(229, 9, 20, 0.05);
+    border-color: rgba(229, 9, 20, 0.3);
 }
 
 .directive-chip-horizontal i {
@@ -1410,7 +1414,7 @@ select option {
 }
 
 .presenter-directive-item:hover {
-    background: rgba(212, 175, 55, 0.04);
+    background: rgba(229, 9, 20, 0.04);
     border-color: var(--accent-gold);
     transform: translateY(-2px);
 }
@@ -1513,7 +1517,7 @@ select option {
     color: var(--accent-gold);
     font-size: 1.5rem;
     cursor: pointer;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 10px rgba(212, 175, 55, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 10px rgba(229, 9, 20, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1525,7 +1529,7 @@ select option {
     transform: scale(1.08) translateY(-2px);
     background: var(--bg-secondary);
     color: var(--accent-gold-hover);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 15px rgba(212, 175, 55, 0.3);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 15px rgba(229, 9, 20, 0.3);
 }
 
 .chatbot-trigger-btn:active {
@@ -1558,7 +1562,7 @@ select option {
     background: rgba(23, 23, 23, 0.9);
     border: 1px solid var(--border-accent);
     border-radius: var(--card-radius);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(212, 175, 55, 0.1);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(229, 9, 20, 0.1);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1644,7 +1648,7 @@ select option {
     border-radius: 4px;
     margin: 6px 0;
     overflow-x: auto;
-    border: 1px solid rgba(212, 175, 55, 0.15);
+    border: 1px solid rgba(229, 9, 20, 0.15);
     color: var(--accent-gold);
 }
 
@@ -1680,8 +1684,8 @@ select option {
 
 .chat-message.user {
     align-self: flex-end;
-    background: rgba(212, 175, 55, 0.12);
-    border: 1px solid rgba(212, 175, 55, 0.25);
+    background: rgba(229, 9, 20, 0.12);
+    border: 1px solid rgba(229, 9, 20, 0.25);
     border-bottom-right-radius: 4px;
     color: var(--color-primary);
 }
