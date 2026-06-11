@@ -132,13 +132,7 @@ class FirebaseService:
 
     # --- Firestore CRUD Wrappers ---
     def get_document(self, collection, doc_id):
-        """Retrieves a single document by ID from collection (with in-memory caching)."""
-        cache_key = (collection, doc_id)
-        with self.lock:
-            if cache_key in self.cache_get:
-                val = self.cache_get[cache_key]
-                return dict(val) if val is not None else None
-
+        """Retrieves a single document by ID from collection (direct DB query, no local cache)."""
         doc = None
         if self.mock_mode:
             with self.lock:
@@ -154,8 +148,6 @@ class FirebaseService:
                 print(f"Firestore get_document error on {collection}/{doc_id}: {e}")
                 doc = None
 
-        with self.lock:
-            self.cache_get[cache_key] = dict(doc) if doc is not None else None
         return doc
 
     def set_document(self, collection, doc_id, data):
@@ -250,14 +242,9 @@ class FirebaseService:
 
     def get_documents_by_filter(self, collection, field, operator, value):
         """
-        Retrieves documents matching a simple filter (with in-memory caching).
+        Retrieves documents matching a simple filter (direct DB query, no local cache).
         Only support '==' operator in mock mode.
         """
-        cache_key = (collection, field, operator, str(value))
-        with self.lock:
-            if cache_key in self.cache_filter:
-                return [dict(doc) for doc in self.cache_filter[cache_key]]
-
         results = []
         if self.mock_mode:
             with self.lock:
@@ -282,13 +269,6 @@ class FirebaseService:
             except Exception as e:
                 print(f"Firestore query error on {collection}: {e}")
 
-        with self.lock:
-            self.cache_filter[cache_key] = [dict(doc) for doc in results]
-            # Warm up individual get cache entries to avoid subsequent redundant queries
-            for doc in results:
-                doc_id = doc.get("id") or doc.get("project_id") or doc.get("uid")
-                if doc_id:
-                    self.cache_get[(collection, doc_id)] = dict(doc)
         return results
 
     def _make_serializable(self, data):
