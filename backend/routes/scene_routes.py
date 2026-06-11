@@ -1,9 +1,9 @@
 import datetime
 from flask import Blueprint, request
-from backend.routes.auth_routes import login_required
-from backend.services.firebase_service import firebase_service
-from backend.services.gemini_service import gemini_service
-from backend.utils.helpers import success_response, error_response
+from .auth_routes import login_required
+from ..services.firebase_service import firebase_service
+from ..services.gemini_service import gemini_service
+from ..utils.helpers import success_response, error_response
 
 scene_bp = Blueprint("scene", __name__)
 

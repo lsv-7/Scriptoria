@@ -2,10 +2,10 @@ import uuid
 import datetime
 import concurrent.futures
 from flask import Blueprint, request
-from backend.routes.auth_routes import login_required
-from backend.services.firebase_service import firebase_service
-from backend.utils.validators import validate_project_input
-from backend.utils.helpers import success_response, error_response
+from .auth_routes import login_required
+from ..services.firebase_service import firebase_service
+from ..utils.validators import validate_project_input
+from ..utils.helpers import success_response, error_response
 
 
 project_bp = Blueprint("project", __name__)

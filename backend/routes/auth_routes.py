@@ -1,8 +1,8 @@
 import datetime
 from flask import Blueprint, request
 from functools import wraps
-from backend.services.firebase_service import firebase_service
-from backend.utils.helpers import get_auth_token, success_response, error_response
+from ..services.firebase_service import firebase_service
+from ..utils.helpers import get_auth_token, success_response, error_response
 
 auth_bp = Blueprint("auth", __name__)
 

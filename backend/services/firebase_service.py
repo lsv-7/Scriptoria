@@ -2,7 +2,7 @@ import os
 import json
 import uuid
 import datetime
-from backend.config import Config
+from ..config import Config
 
 # Try to import firebase-admin. If it's not installed or setup fails, we'll fall back to local mock mode.
 try:
