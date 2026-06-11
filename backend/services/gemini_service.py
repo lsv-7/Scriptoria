@@ -400,8 +400,8 @@ class GeminiService:
         for i, scene in enumerate(scenes_list):
             num = scene.get("scene_number", i + 1)
             loc = scene.get("location", "INT. SCENE - DAY")
-            chars = scene.get("characters", "Characters")
-            chars_str = ", ".join(chars) if isinstance(chars, list) else str(chars)
+            chars = scene.get("characters", [])
+            chars_str = ", ".join([c.get("name", str(c)) if isinstance(c, dict) else str(c) for c in chars]) if isinstance(chars, list) else str(chars)
             
             angle = angles[i % len(angles)]
             lighting = lightings[i % len(lightings)]
