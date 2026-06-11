@@ -55,6 +55,17 @@ def is_invalid_character_name(name):
         return True
     return False
 
+def has_keyword(text, keywords):
+    if not text:
+        return False
+    import re
+    text_lc = text.lower()
+    for w in keywords:
+        pattern = rf"\b{re.escape(w.lower())}\b"
+        if re.search(pattern, text_lc):
+            return True
+    return False
+
 def extract_characters_from_idea(story_idea):
     extracted = []
     lines = [line.strip() for line in (story_idea or "").split('\n') if line.strip()]
@@ -231,18 +242,18 @@ def generate_mock_story(story_idea, genre, target_audience="General", duration_l
     supporting_names = ["Sharmaji", "Vermaji", "Suresh", "Mehta Uncle", "Kapoor Aunt", "Guptaji"]
     
     # Determine base defaults from prompt keywords
-    is_space = any(w in idea_lower for w in ["space", "ship", "star", "cosmic", "alien", "astronaut", "spaceship", "galaxy", "orbit", "planet", "mars", "moon"])
-    is_scifi = any(w in idea_lower for w in ["robot", "robo", "chitti", "android", "ai", "machine", "futuristic", "technology", "sci-fi", "science", "laboratory", "lab", "nuclear", "physics"]) or is_space
-    is_detective = any(w in idea_lower for w in ["detective", "spy", "murder", "agent", "investigation", "crime", "police"])
-    is_chef = any(w in idea_lower for w in ["chef", "cooking", "food", "restaurant", "kitchen", "bakery", "cafe", "bake"])
-    is_school = any(w in idea_lower for w in ["school", "teen", "kid", "child", "children", "classroom", "classmate", "high school", "middle school", "elementary", "primary school", "schoolboy", "schoolgirl", "schoolchild"])
-    is_college = any(w in idea_lower for w in ["college", "university", "student", "class", "library"])
-    is_married = any(w in idea_lower for w in ["married", "marriage", "couple", "wife", "husband", "wedding", "spouse", "newlywed"])
-    is_romance = any(w in idea_lower for w in ["love", "romance", "romantic", "lover", "girlfriend", "boyfriend", "heart"]) or "romance" in genre_lower
-    is_sports = any(w in idea_lower for w in ["cricket", "football", "soccer", "sports", "athlete", "player", "game", "tournament", "team", "play", "match", "athletics", "stadium", "pitch", "ground", "gym", "coach", "train", "selection", "practice"]) or any(w in genre_lower for w in ["sports", "athletic", "game", "cricket"])
-    is_horror = any(w in idea_lower for w in ["horror", "ghost", "haunted", "spirit", "demon", "scary", "creepy", "witch", "monster", "paranormal", "vampire", "zombie", "dark"]) or "horror" in genre_lower
-    is_comedy = any(w in idea_lower for w in ["comedy", "funny", "hilarious", "joke", "prank", "laugh"]) or "comedy" in genre_lower
-    is_action = any(w in idea_lower for w in ["action", "fight", "chase", "escape", "adventure", "danger", "mission", "weapon", "warrior", "battle", "soldier"]) or any(w in genre_lower for w in ["action", "adventure", "thriller"])
+    is_space = has_keyword(idea_lower, ["space", "ship", "star", "cosmic", "alien", "astronaut", "spaceship", "galaxy", "orbit", "planet", "mars", "moon"])
+    is_scifi = has_keyword(idea_lower, ["robot", "robo", "chitti", "android", "ai", "machine", "futuristic", "technology", "sci-fi", "science", "laboratory", "lab", "nuclear", "physics"]) or is_space
+    is_detective = has_keyword(idea_lower, ["detective", "spy", "murder", "agent", "investigation", "crime", "police"])
+    is_chef = has_keyword(idea_lower, ["chef", "cooking", "food", "restaurant", "kitchen", "bakery", "cafe", "bake"])
+    is_school = has_keyword(idea_lower, ["school", "teen", "kid", "child", "children", "classroom", "classmate", "high school", "middle school", "elementary", "primary school", "schoolboy", "schoolgirl", "schoolchild"])
+    is_college = has_keyword(idea_lower, ["college", "university", "student", "class", "library"])
+    is_married = has_keyword(idea_lower, ["married", "marriage", "couple", "wife", "husband", "wedding", "spouse", "newlywed"])
+    is_romance = has_keyword(idea_lower, ["love", "romance", "romantic", "lover", "girlfriend", "boyfriend", "heart"]) or "romance" in genre_lower
+    is_sports = has_keyword(idea_lower, ["cricket", "football", "soccer", "sports", "athlete", "player", "game", "tournament", "team", "play", "match", "athletics", "stadium", "pitch", "ground", "gym", "coach", "train", "selection", "practice"]) or any(w in genre_lower for w in ["sports", "athletic", "game", "cricket"])
+    is_horror = has_keyword(idea_lower, ["horror", "ghost", "haunted", "spirit", "demon", "scary", "creepy", "witch", "monster", "paranormal", "vampire", "zombie", "dark"]) or "horror" in genre_lower
+    is_comedy = has_keyword(idea_lower, ["comedy", "funny", "hilarious", "joke", "prank", "laugh"]) or "comedy" in genre_lower
+    is_action = has_keyword(idea_lower, ["action", "fight", "chase", "escape", "adventure", "danger", "mission", "weapon", "warrior", "battle", "soldier"]) or any(w in genre_lower for w in ["action", "adventure", "thriller"])
 
     if is_space:
         char1_name = "Captain Dev"
@@ -1214,18 +1225,18 @@ def generate_mock_scene_script(story_idea, genre, scene_number, location, scene_
     idea_lower = (story_idea or "").lower()
     genre_lower = (genre or "").lower()
 
-    is_space = any(w in idea_lower for w in ["space", "ship", "star", "cosmic", "alien", "astronaut", "spaceship", "galaxy", "orbit", "planet", "mars", "moon"])
-    is_scifi = any(w in idea_lower for w in ["robot", "robo", "chitti", "android", "ai", "machine", "futuristic", "technology", "sci-fi", "science", "laboratory", "lab", "nuclear", "physics"]) or is_space
-    is_detective = any(w in idea_lower for w in ["detective", "spy", "murder", "agent", "investigation", "crime", "police"])
-    is_chef = any(w in idea_lower for w in ["chef", "cooking", "food", "restaurant", "kitchen", "bakery", "cafe", "bake"])
-    is_school = any(w in idea_lower for w in ["school", "teen", "kid", "child", "children", "classroom", "classmate", "high school", "middle school", "elementary", "primary school", "schoolboy", "schoolgirl", "schoolchild"])
-    is_college = any(w in idea_lower for w in ["college", "university", "student", "class", "library"])
-    is_married = any(w in idea_lower for w in ["married", "marriage", "couple", "wife", "husband", "wedding", "spouse", "newlywed"])
-    is_romance = any(w in idea_lower for w in ["love", "romance", "romantic", "lover", "girlfriend", "boyfriend", "heart"]) or "romance" in genre_lower
-    is_sports = any(w in idea_lower for w in ["cricket", "football", "soccer", "sports", "athlete", "player", "game", "tournament", "team", "play", "match", "athletics", "stadium", "pitch", "ground", "gym", "coach", "train", "selection", "practice"]) or any(w in genre_lower for w in ["sports", "athletic", "game", "cricket"])
-    is_horror = any(w in idea_lower for w in ["horror", "ghost", "haunted", "spirit", "demon", "scary", "creepy", "witch", "monster", "paranormal", "vampire", "zombie", "dark"]) or "horror" in genre_lower
-    is_comedy = any(w in idea_lower for w in ["comedy", "funny", "hilarious", "joke", "prank", "laugh"]) or "comedy" in genre_lower
-    is_action = any(w in idea_lower for w in ["action", "fight", "chase", "escape", "adventure", "danger", "mission", "weapon", "warrior", "battle", "soldier"]) or any(w in genre_lower for w in ["action", "adventure", "thriller"])
+    is_space = has_keyword(idea_lower, ["space", "ship", "star", "cosmic", "alien", "astronaut", "spaceship", "galaxy", "orbit", "planet", "mars", "moon"])
+    is_scifi = has_keyword(idea_lower, ["robot", "robo", "chitti", "android", "ai", "machine", "futuristic", "technology", "sci-fi", "science", "laboratory", "lab", "nuclear", "physics"]) or is_space
+    is_detective = has_keyword(idea_lower, ["detective", "spy", "murder", "agent", "investigation", "crime", "police"])
+    is_chef = has_keyword(idea_lower, ["chef", "cooking", "food", "restaurant", "kitchen", "bakery", "cafe", "bake"])
+    is_school = has_keyword(idea_lower, ["school", "teen", "kid", "child", "children", "classroom", "classmate", "high school", "middle school", "elementary", "primary school", "schoolboy", "schoolgirl", "schoolchild"])
+    is_college = has_keyword(idea_lower, ["college", "university", "student", "class", "library"])
+    is_married = has_keyword(idea_lower, ["married", "marriage", "couple", "wife", "husband", "wedding", "spouse", "newlywed"])
+    is_romance = has_keyword(idea_lower, ["love", "romance", "romantic", "lover", "girlfriend", "boyfriend", "heart"]) or "romance" in genre_lower
+    is_sports = has_keyword(idea_lower, ["cricket", "football", "soccer", "sports", "athlete", "player", "game", "tournament", "team", "play", "match", "athletics", "stadium", "pitch", "ground", "gym", "coach", "train", "selection", "practice"]) or any(w in genre_lower for w in ["sports", "athletic", "game", "cricket"])
+    is_horror = has_keyword(idea_lower, ["horror", "ghost", "haunted", "spirit", "demon", "scary", "creepy", "witch", "monster", "paranormal", "vampire", "zombie", "dark"]) or "horror" in genre_lower
+    is_comedy = has_keyword(idea_lower, ["comedy", "funny", "hilarious", "joke", "prank", "laugh"]) or "comedy" in genre_lower
+    is_action = has_keyword(idea_lower, ["action", "fight", "chase", "escape", "adventure", "danger", "mission", "weapon", "warrior", "battle", "soldier"]) or any(w in genre_lower for w in ["action", "adventure", "thriller"])
 
     if s_num_str == "1":
         if is_space:

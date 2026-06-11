@@ -96,15 +96,33 @@ def generate_screenplay():
         except ValueError:
             return error_response("Invalid 'scene_number' format. Must be an integer.", 400)
             
-        target_scene = next((s for s in scenes if int(s.get("scene_number")) == s_num_int), None)
+        target_scene = None
+        for s in scenes:
+            s_num = s.get("scene_number")
+            if s_num is not None:
+                try:
+                    if int(s_num) == s_num_int:
+                        target_scene = s
+                        break
+                except (ValueError, TypeError):
+                    pass
+
         if not target_scene:
             return error_response(f"Scene number {s_num_int} not found in the project's scene breakdown.", 404)
             
         scene_text = granite_service.generate_scene_script(
             story_idea, genre, characters_list, duration_length, target_scene, scenes, project_id=project_id
         )
-        if not scene_text:
-            return error_response(f"Failed to generate screenplay for Scene {s_num_int}.", 500)
+        if not scene_text or "error" in scene_text.lower():
+            from backend.utils.story_generator import generate_mock_scene_script
+            scene_text = generate_mock_scene_script(
+                story_idea, genre, s_num_int,
+                target_scene.get("location", "INT. SCENE - DAY"),
+                target_scene.get("characters", "Characters"),
+                target_scene.get("objective", "Objective"),
+                target_scene.get("duration", "3 mins"),
+                characters_list
+            )
             
         scene_scripts[str(s_num_int)] = scene_text
     else:
@@ -122,7 +140,7 @@ def generate_screenplay():
             results = list(executor.map(gen_scene, scenes))
             
         for s_num, text in results:
-            if not text or "error" in text:
+            if not text or "error" in text.lower():
                 from backend.utils.story_generator import generate_mock_scene_script
                 scene_item = next((s for s in scenes if s.get("scene_number") == s_num), {})
                 text = generate_mock_scene_script(

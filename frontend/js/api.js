@@ -1,8 +1,8 @@
 // API Integration Client for CineForge AI Backend
 
-const API_BASE_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-    ? (window.location.port === "5001" ? window.location.origin : "http://localhost:5001")
-    : (window.location.protocol === "file:" ? "http://localhost:5001" : "https://scriptoria-ivsj.onrender.com");
+const API_BASE_URL = window.location.port === "5001"
+    ? window.location.origin
+    : "https://scriptoria-ivsj.onrender.com";
 
 class CineForgeAPI {
     constructor() {
