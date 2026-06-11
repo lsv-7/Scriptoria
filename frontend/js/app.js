@@ -329,47 +329,88 @@ async function handleCreateProject(e) {
         // Step 1 active
         document.getElementById("step-char").className = "global-gen-step active";
         
-        // Timer to simulate stage steps while waiting for backend
-        const stepInterval = setInterval(() => {
-            const charEl = document.getElementById("step-char");
-            const storyEl = document.getElementById("step-story");
-            const scenesEl = document.getElementById("step-scenes");
-            const scriptEl = document.getElementById("step-script");
-            const assetsEl = document.getElementById("step-assets");
-            
-            if (charEl.classList.contains("active")) {
-                charEl.className = "global-gen-step completed";
-                storyEl.className = "global-gen-step active";
-            } else if (storyEl.classList.contains("active")) {
-                storyEl.className = "global-gen-step completed";
-                scenesEl.className = "global-gen-step active";
-            } else if (scenesEl.classList.contains("active")) {
-                scenesEl.className = "global-gen-step completed";
-                scriptEl.className = "global-gen-step active";
-            } else if (scriptEl.classList.contains("active")) {
-                scriptEl.className = "global-gen-step completed";
-                assetsEl.className = "global-gen-step active";
-            }
-        }, 3500);
-        
         // Trigger all-in-one pre-production generator
         await api.generateAllPreproduction(newProj.project_id);
         
-        clearInterval(stepInterval);
-        
-        // Mark all steps completed
-        steps.forEach(id => {
-            document.getElementById(id).className = "global-gen-step completed";
-        });
-        
-        // Hold briefly to show completion
-        await new Promise(resolve => setTimeout(resolve, 800));
-        overlay.classList.remove("active");
-        
-        // Load the new project
-        await loadProjectIntoSession(newProj.project_id);
-        
-        showToast("New project pre-production package ready!", "success");
+        // Start polling the backend for generation status
+        let pollCount = 0;
+        const pollInterval = setInterval(async () => {
+            pollCount++;
+            if (pollCount > 120) { // 6 minutes max
+                clearInterval(pollInterval);
+                document.getElementById("global-gen-overlay").classList.remove("active");
+                showToast("Pre-production generation took too long. Please refresh the page.", "error");
+                return;
+            }
+            
+            try {
+                const statusRes = await api.getGenerationStatus(newProj.project_id);
+                const statusData = statusRes.data;
+                const status = statusData.status;
+                
+                const charEl = document.getElementById("step-char");
+                const storyEl = document.getElementById("step-story");
+                const scenesEl = document.getElementById("step-scenes");
+                const scriptEl = document.getElementById("step-script");
+                const assetsEl = document.getElementById("step-assets");
+                
+                // Characters step
+                if (status.characters) {
+                    charEl.className = "global-gen-step completed";
+                } else {
+                    charEl.className = "global-gen-step active";
+                }
+                
+                // Story analysis step
+                if (status.story_analysis && status.narrative_structure) {
+                    storyEl.className = "global-gen-step completed";
+                } else if (status.characters) {
+                    storyEl.className = "global-gen-step active";
+                }
+                
+                // Scenes breakdown step
+                if (status.scene_breakdown) {
+                    scenesEl.className = "global-gen-step completed";
+                } else if (status.story_analysis && status.narrative_structure) {
+                    scenesEl.className = "global-gen-step active";
+                }
+                
+                // Screenplay step
+                if (status.screenplay) {
+                    scriptEl.className = "global-gen-step completed";
+                } else if (status.scene_breakdown) {
+                    scriptEl.className = "global-gen-step active";
+                }
+                
+                // Downstream assets step
+                const assetsDone = status.storyboard && status.sound_design && status.production_plan && status.budget_plan;
+                if (assetsDone) {
+                    assetsEl.className = "global-gen-step completed";
+                } else if (status.screenplay) {
+                    assetsEl.className = "global-gen-step active";
+                }
+                
+                if (statusData.is_complete) {
+                    clearInterval(pollInterval);
+                    
+                    // Mark all steps completed in UI
+                    const steps = ["step-char", "step-story", "step-scenes", "step-script", "step-assets"];
+                    steps.forEach(id => {
+                        document.getElementById(id).className = "global-gen-step completed";
+                    });
+                    
+                    // Hold briefly to show completion
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                    document.getElementById("global-gen-overlay").classList.remove("active");
+                    
+                    // Load the new project
+                    await loadProjectIntoSession(newProj.project_id);
+                    showToast("New project pre-production package ready!", "success");
+                }
+            } catch (err) {
+                console.error("Error polling generation status:", err);
+            }
+        }, 3000); // Poll every 3 seconds
     } catch (err) {
         document.getElementById("global-gen-overlay").classList.remove("active");
         showToast("Failed to initialize project pre-production package: " + err.message, "error");

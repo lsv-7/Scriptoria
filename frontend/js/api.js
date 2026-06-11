@@ -175,6 +175,10 @@ class CineForgeAPI {
             throw error;
         }
     }
+
+    async getGenerationStatus(projectId) {
+        return this._request(`/project/${projectId}/generation-status`, "GET");
+    }
 }
 
 // Instantiate API wrapper globally
