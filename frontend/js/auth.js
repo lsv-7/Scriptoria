@@ -120,9 +120,6 @@ async function authLogin(email, password, useMock) {
         localStorage.setItem("cineforge_mock_token", "mock_token_" + uid);
         localStorage.setItem("cineforge_user", JSON.stringify(user));
         
-        // Register mock user details on backend first to ensure the email is recorded
-        await api.signup(uid, "Local Filmmaker", finalEmail);
-        
         // Sync to flask
         await api.login();
         return user;
@@ -170,9 +167,6 @@ async function authGoogleSignIn(useMock) {
         
         localStorage.setItem("cineforge_mock_token", "mock_token_" + uid);
         localStorage.setItem("cineforge_user", JSON.stringify(user));
-        
-        // Sync/Register mock user details on backend
-        await api.signup(uid, "Google Filmmaker", finalEmail);
         
         // Sync to flask
         await api.login();
