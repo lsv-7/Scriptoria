@@ -40,7 +40,7 @@ class GeminiService:
                 print(f"Error configuring Gemini API: {e}")
                 
         # Initialize Groq models list
-        self.groq_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+        self.groq_models = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"]
 
     def _generate_groq(self, prompt, max_tokens=1024, system_message=None):
         """Internal helper to call Groq API with fallback models and rate-limit cooldown."""
