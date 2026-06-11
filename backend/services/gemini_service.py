@@ -1,28 +1,18 @@
 import os
 import json
 import random
-<<<<<<< Updated upstream
 from backend.config import Config
 from backend.utils.prompts import (
     GLOBAL_RULES,
     GENRE_GUIDELINES,
-=======
-from ..config import Config
-from ..utils.prompts import (
->>>>>>> Stashed changes
     STORY_ANALYSIS_PROMPT,
     NARRATIVE_STRUCTURE_PROMPT,
     CHARACTER_GENERATOR_PROMPT,
     SCENE_BREAKDOWN_PROMPT,
     STORYBOARD_PROMPT
 )
-<<<<<<< Updated upstream
 from backend.utils.helpers import clean_json_response, clean_prose_data, parse_combined_story_idea
 from backend.utils.story_generator import generate_mock_story
-=======
-from ..utils.helpers import clean_json_response, clean_prose_data
-from ..utils.story_generator import generate_mock_story
->>>>>>> Stashed changes
 
 # Try to import google-generativeai. If missing, we fall back to mock generation.
 try:

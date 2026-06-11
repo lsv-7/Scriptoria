@@ -1,15 +1,10 @@
 import os
 import json
 import google.generativeai as genai
-<<<<<<< Updated upstream
 from backend.config import Config
 from backend.utils.prompts import (
     GLOBAL_RULES,
     GENRE_GUIDELINES,
-=======
-from ..config import Config
-from ..utils.prompts import (
->>>>>>> Stashed changes
     SCREENPLAY_PROMPT,
     SOUND_DESIGN_PROMPT,
     PRODUCTION_PLAN_PROMPT,
