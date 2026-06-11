@@ -60,10 +60,40 @@ def has_keyword(text, keywords):
         return False
     import re
     text_lc = text.lower()
+    
+    # List of suffix-based exceptions we want to ignore when they contain "ship"
+    blacklist = ["relationship", "friendship", "worship", "citizenship", "membership", 
+                 "partnership", "ownership", "hardship", "dealership", "sponsorship",
+                 "leadership", "fellowship", "championship", "courtship", "hardships"]
+                 
+    # Temporarily remove blacklisted words from text before matching
+    clean_text = text_lc
+    for word in blacklist:
+        clean_text = clean_text.replace(word, "")
+        
     for w in keywords:
-        pattern = rf"\b{re.escape(w.lower())}\b"
-        if re.search(pattern, text_lc):
-            return True
+        w_lower = w.lower()
+        if w_lower == "ship":
+            if "ship" in clean_text:
+                return True
+        elif w_lower == "star":
+            # Match "star", "stars", "starry", "stardust" but not "start", "starting", "started"
+            clean_star = clean_text.replace("start", "").replace("stare", "")
+            if "star" in clean_star:
+                return True
+        elif w_lower == "ai":
+            # "ai" is very short, match only as whole word
+            if re.search(r"\bai\b", clean_text):
+                return True
+        elif w_lower == "lab":
+            # match "lab", "labs", "laboratory" but not "label"
+            clean_lab = clean_text.replace("label", "")
+            if "lab" in clean_lab:
+                return True
+        else:
+            # For other keywords, substring match is fine (e.g. "cricket" matches "cricketer")
+            if w_lower in clean_text:
+                return True
     return False
 
 def extract_characters_from_idea(story_idea):
