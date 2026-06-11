@@ -273,7 +273,9 @@ async function handleRegister(e) {
 }
 
 async function handleGoogleSignIn() {
-    const isMock = document.getElementById("login-mock-toggle").checked;
+    const loginMock = document.getElementById("login-mock-toggle");
+    const regMock = document.getElementById("register-mock-toggle");
+    const isMock = (loginMock && loginMock.checked) || (regMock && regMock.checked);
     try {
         const user = await authGoogleSignIn(isMock);
         currentUser = user;
@@ -283,6 +285,7 @@ async function handleGoogleSignIn() {
         localStorage.removeItem("cineforge_active_project_id");
         
         closeModal("login-modal");
+        closeModal("register-modal");
         onUserAuthenticated();
         showToast("Logged in with Google!", "success");
     } catch (err) {

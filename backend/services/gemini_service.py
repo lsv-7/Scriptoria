@@ -401,12 +401,13 @@ class GeminiService:
             num = scene.get("scene_number", i + 1)
             loc = scene.get("location", "INT. SCENE - DAY")
             chars = scene.get("characters", "Characters")
+            chars_str = ", ".join(chars) if isinstance(chars, list) else str(chars)
             
             angle = angles[i % len(angles)]
             lighting = lightings[i % len(lightings)]
             mood = moods[i % len(moods)]
             
-            prompt = f"Cinematic storyboard frame, {loc.lower()}, featuring {chars.lower()}, {angle.lower()}, {lighting.lower()}, film concept art style, highly detailed composition."
+            prompt = f"Cinematic storyboard frame, {loc.lower()}, featuring {chars_str.lower()}, {angle.lower()}, {lighting.lower()}, film concept art style, highly detailed composition."
             
             storyboards.append({
                 "scene_number": num,

@@ -302,7 +302,7 @@ Return ONLY valid JSON.
 # ============================================================
 
 SCREENPLAY_PROMPT = """
-You are an award-winning screenwriter.
+You are an award-winning professional screenwriter. Write an industry-standard screenplay script for the current scene, ensuring natural dialogue, compelling subtext, and rich cinematic action.
 
 Story Analysis:
 {story_analysis}
@@ -319,23 +319,26 @@ Scene Breakdown:
 Previous Scene Summary:
 {previous_scene}
 
-Current Scene:
+Current Scene Info:
 {current_scene}
 
 Genre Guidance:
 {genre_guidance}
 
-Instructions:
+CRITICAL INSTRUCTIONS & FORMATTING RULES:
+1. Write ONLY the script for the current scene. Do not include introductory notes, title pages, or conversational preamble.
+2. Follow standard industry screenplay format:
+   - SCENE HEADING: Start with INT. or EXT., followed by the location and time of day (e.g., INT. LIBRARY - DAY). Keep it in all caps on its own line.
+   - ACTION LINES: Write in present tense. Describe only what can be seen and heard. Introduce character names in ALL CAPS when they first appear in action lines (e.g., AARAV (25)). Action text should be left-aligned and single-spaced.
+   - CHARACTER CUES: When a character speaks, place their name in ALL CAPS centered on its own line.
+   - PARENTHETICALS: Use parentheticals (e.g. (whispering)) sparingly to describe the delivery or immediate action of the speaker. Place on a separate line between the character name and their dialogue.
+   - DIALOGUE: Write rich, authentic dialogue indented below the character name. Avoid on-the-nose writing. Utilize subtext.
+3. Establish a clear beginning, middle, and resolution for the scene. Emphasize character conflict, emotional beats, and objectives.
+4. Maintain perfect narrative continuity with the Previous Scene Summary.
 
-- Write ONLY the current scene.
-- Maintain continuity.
-- Follow industry screenplay standards.
-- Use proper scene headings.
-- Strong visual storytelling.
-- Character voices must remain consistent.
-
-Return screenplay text only.
+Generate the screenplay for the current scene now:
 """
+
 
 # ============================================================
 # SOUND DESIGN

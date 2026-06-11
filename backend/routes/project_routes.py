@@ -1,10 +1,12 @@
 import uuid
 import datetime
+import concurrent.futures
 from flask import Blueprint, request
 from backend.routes.auth_routes import login_required
 from backend.services.firebase_service import firebase_service
 from backend.utils.validators import validate_project_input
 from backend.utils.helpers import success_response, error_response
+
 
 project_bp = Blueprint("project", __name__)
 
@@ -67,20 +69,34 @@ def get_project_by_id(id):
     if project.get("user_id") != user_id:
         return error_response("Access denied. You do not own this project.", 403)
         
-    # Compile all related pre-production sub-documents
-    # Use fallback queries matching project_id
-    compiled_data = {
-        "project": project,
-        "story_analysis": firebase_service.get_document("story_analysis", id),
-        "narrative_structure": firebase_service.get_document("narrative_structures", id),
-        "screenplay": firebase_service.get_document("screenplays", id),
-        "characters": firebase_service.get_document("characters", id),
-        "scene_breakdown": firebase_service.get_document("scene_breakdowns", id),
-        "storyboard": firebase_service.get_document("storyboards", id),
-        "sound_design": firebase_service.get_document("sound_designs", id),
-        "production_plan": firebase_service.get_document("production_plans", id),
-        "budget_plan": firebase_service.get_document("budget_plans", id)
-    }
+    # Compile all related pre-production sub-documents in parallel
+    sub_docs = [
+        ("story_analysis", "story_analysis"),
+        ("narrative_structures", "narrative_structure"),
+        ("screenplays", "screenplay"),
+        ("characters", "characters"),
+        ("scene_breakdowns", "scene_breakdown"),
+        ("storyboards", "storyboard"),
+        ("sound_designs", "sound_design"),
+        ("production_plans", "production_plan"),
+        ("budget_plans", "budget_plan")
+    ]
+    
+    compiled_data = {"project": project}
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(sub_docs)) as executor:
+        future_to_key = {
+            executor.submit(firebase_service.get_document, coll, id): key
+            for coll, key in sub_docs
+        }
+        for future in concurrent.futures.as_completed(future_to_key):
+            key = future_to_key[future]
+            try:
+                compiled_data[key] = future.result()
+            except Exception as e:
+                print(f"Error parallel fetching {key}: {e}")
+                compiled_data[key] = None
+
     
     return success_response(compiled_data, "Project detail and module assets loaded.")
 
@@ -410,27 +426,43 @@ def get_generation_status(id):
     if project.get("user_id") != user_id:
         return error_response("Access denied.", 403)
         
-    # Check document existence in database
-    analysis = firebase_service.get_document("story_analysis", id)
-    characters = firebase_service.get_document("characters", id)
-    structure = firebase_service.get_document("narrative_structures", id)
-    scenes = firebase_service.get_document("scene_breakdowns", id)
-    screenplay = firebase_service.get_document("screenplays", id)
-    storyboard = firebase_service.get_document("storyboards", id)
-    sound = firebase_service.get_document("sound_designs", id)
-    production = firebase_service.get_document("production_plans", id)
-    budget = firebase_service.get_document("budget_plans", id)
+    # Check document existence in database in parallel
+    sub_docs = [
+        ("story_analysis", "story_analysis"),
+        ("characters", "characters"),
+        ("narrative_structures", "narrative_structure"),
+        ("scene_breakdowns", "scene_breakdown"),
+        ("screenplays", "screenplay"),
+        ("storyboards", "storyboard"),
+        ("sound_designs", "sound_design"),
+        ("production_plans", "production_plan"),
+        ("budget_plans", "budget_plan")
+    ]
     
+    docs_exist = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(sub_docs)) as executor:
+        future_to_key = {
+            executor.submit(firebase_service.get_document, coll, id): key
+            for coll, key in sub_docs
+        }
+        for future in concurrent.futures.as_completed(future_to_key):
+            key = future_to_key[future]
+            try:
+                docs_exist[key] = future.result() is not None
+            except Exception as e:
+                print(f"Error parallel checking status of {key}: {e}")
+                docs_exist[key] = False
+                
     status = {
-        "story_analysis": analysis is not None,
-        "characters": characters is not None,
-        "narrative_structure": structure is not None,
-        "scene_breakdown": scenes is not None,
-        "screenplay": screenplay is not None,
-        "storyboard": storyboard is not None,
-        "sound_design": sound is not None,
-        "production_plan": production is not None,
-        "budget_plan": budget is not None
+        "story_analysis": docs_exist.get("story_analysis", False),
+        "characters": docs_exist.get("characters", False),
+        "narrative_structure": docs_exist.get("narrative_structure", False),
+        "scene_breakdown": docs_exist.get("scene_breakdown", False),
+        "screenplay": docs_exist.get("screenplay", False),
+        "storyboard": docs_exist.get("storyboard", False),
+        "sound_design": docs_exist.get("sound_design", False),
+        "production_plan": docs_exist.get("production_plan", False),
+        "budget_plan": docs_exist.get("budget_plan", False)
     }
     
     completed_count = sum(1 for v in status.values() if v)
@@ -443,6 +475,7 @@ def get_generation_status(id):
         "progress": progress,
         "status": status
     })
+
 
 @project_bp.route("/project/chat", methods=["POST"])
 @login_required

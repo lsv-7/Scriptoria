@@ -17,10 +17,10 @@ class CineForgeAPI {
         const mockToken = localStorage.getItem("cineforge_mock_token");
         if (mockToken) return mockToken;
 
-        // Otherwise check real Firebase Auth
-        if (window.firebase && firebase.auth().currentUser) {
-            return localStorage.getItem("cineforge_fb_token") || "";
-        }
+        // Otherwise check real Firebase Auth token in local storage
+        const fbToken = localStorage.getItem("cineforge_fb_token");
+        if (fbToken) return fbToken;
+
         return "";
     }
 

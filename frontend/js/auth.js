@@ -54,8 +54,12 @@ function initFirebase() {
  */
 async function authSignup(name, email, password, useMock) {
     if (useMock) {
-        // Mock Register: Generate a mock UID
-        const mockUid = "mock_" + Math.random().toString(36).substring(2, 11);
+        // Mock Register: Generate a deterministic mock UID from email
+        const cleanEmail = email.trim().toLowerCase();
+        let mockUid = "mock_user_123";
+        if (cleanEmail) {
+            mockUid = "mock_" + btoa(cleanEmail).substring(0, 10).replace(/[^a-zA-Z0-9]/g, "");
+        }
         const user = { uid: mockUid, name, email };
         
         // Save mock session locally
@@ -105,15 +109,19 @@ async function authLogin(email, password, useMock) {
         if (cleanEmail) {
             uid = "mock_" + btoa(cleanEmail).substring(0, 10).replace(/[^a-zA-Z0-9]/g, "");
         }
+        const finalEmail = email || "filmmaker@cineforge.local";
         const user = {
             uid: uid,
             name: "Local Filmmaker",
-            email: email || "filmmaker@cineforge.local"
+            email: finalEmail
         };
         
         // Save mock session
         localStorage.setItem("cineforge_mock_token", "mock_token_" + uid);
         localStorage.setItem("cineforge_user", JSON.stringify(user));
+        
+        // Register mock user details on backend first to ensure the email is recorded
+        await api.signup(uid, "Local Filmmaker", finalEmail);
         
         // Sync to flask
         await api.login();
@@ -148,7 +156,27 @@ async function authLogin(email, password, useMock) {
  */
 async function authGoogleSignIn(useMock) {
     if (useMock) {
-        return authLogin("google.user@cineforge.local", "", true);
+        const mockEmail = prompt("Simulating Google Sign-In (Demo Mode). Enter mock email:", "google.filmmaker@cineforge.local");
+        if (mockEmail === null) throw new Error("Google Sign-In canceled.");
+        const finalEmail = mockEmail.trim() || "google.user@cineforge.local";
+        
+        const cleanEmail = finalEmail.toLowerCase();
+        const uid = "mock_" + btoa(cleanEmail).substring(0, 10).replace(/[^a-zA-Z0-9]/g, "");
+        const user = {
+            uid: uid,
+            name: "Google Filmmaker",
+            email: finalEmail
+        };
+        
+        localStorage.setItem("cineforge_mock_token", "mock_token_" + uid);
+        localStorage.setItem("cineforge_user", JSON.stringify(user));
+        
+        // Sync/Register mock user details on backend
+        await api.signup(uid, "Google Filmmaker", finalEmail);
+        
+        // Sync to flask
+        await api.login();
+        return user;
     }
 
     if (!firebaseInitialized) {
