@@ -1,6 +1,11 @@
 import os
+import sys
 from flask import Flask, jsonify
 from flask_cors import CORS
+
+# Allow running this file directly from the backend directory as well as via module execution.
+if __name__ == "__main__" and __package__ is None:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.config import Config
 from backend.routes.auth_routes import auth_bp

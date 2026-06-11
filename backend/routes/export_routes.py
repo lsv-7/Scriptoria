@@ -1,8 +1,8 @@
 from flask import Blueprint, request, Response
-from backend.routes.auth_routes import login_required
-from backend.services.firebase_service import firebase_service
-from backend.services.export_service import export_service
-from backend.utils.helpers import error_response
+from .auth_routes import login_required
+from ..services.firebase_service import firebase_service
+from ..services.export_service import export_service
+from ..utils.helpers import error_response
 
 export_bp = Blueprint("export", __name__)
 

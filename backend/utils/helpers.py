@@ -135,7 +135,7 @@ def clean_prose_text(text):
         return text
     
     # Import inline to avoid circular imports
-    from backend.utils.story_generator import clean_location_for_prose
+    from .story_generator import clean_location_for_prose
     
     # Matches patterns like INT. CLASSROOM - DAY or EXT. STREETS (case-insensitive)
     pattern = r'\b(?:INT|EXT|INT/EXT|EXT/INT|INT\./EXT\.|EXT\./INT\.)\.?\s+([^-\t\n\r]+)(?:\s*-\s*(?:DAY|NIGHT|DUSK|DAWN|LATER|CONTINUOUS|SAME TIME))?\b'
